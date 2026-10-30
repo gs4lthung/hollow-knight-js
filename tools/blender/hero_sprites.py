@@ -14,7 +14,9 @@ Each character is a 2D "cut-out puppet" built from flat prisms, tubes and flatte
 ellipsoids in the XZ plane, seen by an orthographic camera looking down +Y (1 Blender
 unit == 1 output pixel, z = 0 is the ground line). Depth (Y) is only used for layer
 order. Outlines come from inverted-hull Solidify modifiers + backface culling, rendered
-with Workbench flat lighting at SS x resolution, then box-downsampled with numpy.
+with Workbench flat lighting at SS x resolution. paint() then re-shades every flat colour
+shape with soft light from the upper front, a brush texture, heavier lines on the shadow
+side and rough edges; glowing accents get a small bloom after the box-downsample.
 """
 
 import argparse
@@ -269,7 +271,7 @@ def setup_scene(ss):
     return sc
 
 
-def render_frame(w, h, ss, path, tmpdir, look):
+def render_frame(w, h, ss, path, tmpdir, look, settle=False):
     sc = bpy.context.scene
     cam = sc.camera
     cam.data.ortho_scale = max(w, h)
@@ -286,6 +288,10 @@ def render_frame(w, h, ss, path, tmpdir, look):
     px = px.reshape(h * ss, w * ss, 4)
     painted, emissive = paint(px, ss, look)
     small = add_glow(downsample(painted, ss), emissive.reshape(h, ss, w, ss).mean(axis=(1, 3)))
+    if settle:  # drop the figure onto the baseline (row 0 is the bottom)
+        rows = np.nonzero(small[..., 3].max(axis=1) > 0.03)[0]
+        if len(rows) and rows[0] > 0:
+            small = np.concatenate([small[rows[0]:], np.zeros_like(small[:rows[0]])])
     save_png(small, path)
     return small
 
@@ -524,8 +530,8 @@ CHARS = {
         outline="#08132e", x=58,
         leg=20, leg_w=3.0, leg_gap=3.5, foot=4.2, foot_r=2.1, leg_col="#13234a", leg_back="#0b1530",
         H=48, hem=-15, wt=20, wb=36, teeth=5, tooth=4.0, back_x=7, flare_amt=16, flare_lift=5, wave_amt=2.4,
-        cloak="#1f43a0", trim="#2bb3a8", trim_ext=3.0, foam="#e9fbff",
-        head_rx=15, head_rz=21, head_dx=2, head_dz=17, head="#1d3c7c",
+        cloak="#234588", trim="#2bb3a8", trim_ext=3.0, foam="#e9fbff",
+        head_rx=15, head_rz=21, head_dx=2, head_dz=17, head="#182f66",
         sh_x=4, arm=12, idle_arm=-150, idle_wpn=125, idle_front=False, reach_dx=-17, wlen=57,
         gait=24, bob=1.0, lean_walk=-5, breath=1.2,
         fx=["#e9fbff", "#5fd6cc", "#2b6fd6"],
@@ -627,62 +633,68 @@ def draw_hero(cv, el, C, P):
     return Mroot, Mhead
 
 
-# ---- eyes ----------------------------------------------------------------------------
-def eyes_fire(cv, C, P, Mh):
-    sock = "#3a0806"
-    cv.poly(ap(Mh, [(0, 3), (9.5, 0.5), (9.5, -5), (2, -6.5), (-1.5, -2)]), L_EYES, sock)
-    cv.poly(ap(Mh, [(12.5, 1), (18.5, -0.8), (18, -5.5), (13, -6)]), L_EYES, sock)
-    glow = 0.25 * math.sin(P["t"] * 2)
-    cv.ell(Mh @ T(5.2, -2.4), 3.0 + glow, 2.8 + glow, L_EYES2, "#ff9a2a", outline=False)
-    cv.ell(Mh @ T(5.2, -2.4), 1.7, 2.0, L_EYES2 - 1.5, "#fff47a", outline=False)
-    cv.ell(Mh @ T(15.3, -2.8), 2.2 + glow, 2.4 + glow, L_EYES2, "#ff9a2a", outline=False)
-    cv.ell(Mh @ T(15.3, -2.8), 1.2, 1.7, L_EYES2 - 1.5, "#fff47a", outline=False)
+# ---- heads + faces --------------------------------------------------------------------
+def head_earth(cv, C, P, Mh):
+    crag = [(-20, -8), (-21.5, 4), (-16, 13.5), (-5, 18), (9, 17), (19, 10.5), (22, -1), (19.5, -12), (8, -17), (-9, -16.5)]
+    cv.poly(ap(Mh, crag), L_HEAD, C["head"])
+    cv.poly(ap(Mh, [(-19, -6), (-9, -14.5), (8, -15.5), (18.5, -10), (6, -9.5), (-8, -8.5)]), L_HEAD - 1, "#6f675a", outline=False)
 
 
-def eyes_earth(cv, C, P, Mh):
-    cv.ell(Mh @ T(7, -2), 3.4, 3.6, L_EYES, "#1e1a14")
-    cv.ell(Mh @ T(16.5, -2.4), 2.6, 3.3, L_EYES, "#1e1a14")
-    cv.poly(ap(Mh, [(-2, 5.5), (10, 5.8), (21.5, 3.5), (21.8, 1.0), (11, 2.6), (-2, 2.2)]), L_EYES2, "#857c6c")
-    cv.tube(ap(Mh, [(-14, 9), (-8, 3), (-11, -6)]), 0.7, L_EYES, "#8a8274", outline=False)
-    cv.tube(ap(Mh, [(4, -9), (9, -13)]), 0.6, L_EYES, "#8a8274", outline=False)
+def face_fire(cv, C, P, Mh):
+    # visor: dark recess with a glowing slit
+    cv.poly(ap(Mh, [(0, 2.5), (18.5, 2), (19.5, -3.5), (1.5, -5.5)]), L_EYES, "#170a07")
+    g = 0.4 * math.sin(P["t"] * 2)
+    cv.poly(ap(Mh, [(3.5, 0.6 + g), (17, 0.4), (17.6, -2.4), (4, -2.8 - g)]), L_EYES2, "#ff8a2a", outline=False)
+    cv.poly(ap(Mh, [(6, -0.4), (15, -0.6), (15.3, -1.7), (6.2, -1.9)]), L_EYES2 - 1.5, "#ffe08a", outline=False)
 
 
-def eyes_water(cv, C, P, Mh):
-    cv.ell(Mh @ T(3.5, -3.5) @ R(-6), 3.7, 6.6, L_EYES, "#0b1a3a")
-    cv.ell(Mh @ T(11.2, -3.8) @ R(-6), 2.8, 6.0, L_EYES, "#0b1a3a")
-    cv.circ(ap1(Mh, (4.4, -1)), 1.2, L_EYES2, "#ffffff", outline=False)
-    cv.poly(ap(Mh, [(6, 13), (8, 10), (6, 7), (4, 10)]), L_EYES, "#2bb3a8")
+def face_earth(cv, C, P, Mh):
+    # deep brow crevice with two small eyes glowing in it
+    cv.poly(ap(Mh, [(0, 4.5), (20.5, 3.5), (21, -3), (1, -2.5)]), L_EYES, "#211b14")
+    cv.ell(Mh @ T(8, 0.8), 2.4, 1.6, L_EYES2, "#d8e86a", outline=False)
+    cv.ell(Mh @ T(16.5, 0.4), 1.8, 1.4, L_EYES2, "#d8e86a", outline=False)
+    for pts in ([(-14, 9), (-9, 3), (-12, -6)], [(4, -8), (10, -13)], [(-3, 13), (2, 9)]):
+        cv.tube(ap(Mh, pts), 0.7, L_EYES, "#5e574b", outline=False)
 
 
-def eyes_wind(cv, C, P, Mh):
-    cv.ell(Mh @ T(3, -1.5), 5.0, 5.6, L_EYES, "#1d3b35")
-    cv.ell(Mh @ T(12.6, -1.6), 3.7, 5.0, L_EYES, "#1d3b35")
-    cv.circ(ap1(Mh, (4.6, 1.2)), 1.6, L_EYES2, "#ffffff", outline=False)
-    cv.circ(ap1(Mh, (13.6, 0.8)), 1.1, L_EYES2, "#ffffff", outline=False)
+def face_water(cv, C, P, Mh):
+    # shadowed face inside the hood, two small sea-glass eyes
+    cv.ell(Mh @ T(5.5, -4) @ R(-8), 8.2, 11, L_EYES, "#081329")
+    cv.ell(Mh @ T(7, -2), 1.8, 2.5, L_EYES2, "#7fe8e0", outline=False)
+    cv.ell(Mh @ T(11.6, -2.3), 1.4, 2.2, L_EYES2, "#7fe8e0", outline=False)
+
+
+def face_wind(cv, C, P, Mh):
+    # open face in the hood: small dark eyes and a bit of colour on the cheek
+    cv.ell(Mh @ T(5.5, -2.5), 9.5, 9.5, L_EYES, "#e3d3ad")
+    cv.ell(Mh @ T(10.5, -6.3), 2.3, 1.2, L_EYES2 + 1, "#d9927e", outline=False)
+    cv.ell(Mh @ T(7.5, -1.5), 1.5, 2.3, L_EYES2, "#22302a", outline=False)
+    cv.ell(Mh @ T(13, -1.8), 1.2, 2.1, L_EYES2, "#22302a", outline=False)
+    cv.circ(ap1(Mh, (7.9, -0.6)), 0.55, L_EYES2 - 1, "#ffffff", outline=False)
+    cv.circ(ap1(Mh, (13.3, -0.9)), 0.45, L_EYES2 - 1, "#ffffff", outline=False)
 
 
 # ---- head decoration + body extras ---------------------------------------------------
 def extra_fire(cv, C, P, Mr, Mh):
-    t = P["t"]
-    trail = P["trail"]
-    for ang, hgt, w, ph in ((128, 20, 10, 0.0), (102, 29, 12, 1.7), (78, 21, 10, 3.1)):
-        a = math.radians(ang)
-        base = (C["head_rx"] * 0.8 * math.cos(a), C["head_rz"] * 0.8 * math.sin(a))
-        Mf = Mh @ T(*base) @ R(ang - 90 + 12 + trail * 0.4)
-        fl = 1.4 * math.sin(t * 2 + ph)
-        h = hgt * (1 + 0.06 * math.sin(t * 3 + ph))
-        cv.poly(ap(Mf, flame_pts(w, h, -0.55, fl)), L_HORN, "#e2401c")
-        cv.poly(ap(Mf, flame_pts(w * 0.62, h * 0.72, -0.5, fl * 0.8)), L_HORN - 1.5, "#ff8a1f", outline=False)
-        cv.poly(ap(Mf, flame_pts(w * 0.3, h * 0.42, -0.4, fl * 0.5)), L_HORN - 2.5, "#ffd84a", outline=False)
-    # embers drifting above the crest
-    for k, (ex, ez) in enumerate(((-14, 24), (-4, 33), (8, 27))):
+    t, trail = P["t"], P["trail"]
+    # helm: ridge over the crown, brim with rivets along the bottom
+    cv.tube(ap(Mh, [(-16, 8), (-7, 16), (6, 16.5), (14, 11)]), 2.0, L_EYES + 1, "#5a3d33")
+    cv.poly(ap(Mh, band_pts(0, -0.5, 20, 16.8, 3.2, 200, 340, 18)), L_EYES + 1, "#5a3d33")
+    for ang in (220, 255, 290, 322):
+        cv.circ(ap1(Mh, (20 * math.cos(math.radians(ang)), -0.5 + 16.8 * math.sin(math.radians(ang)))), 0.9, L_EYES - 0.5, "#8a5f4c", outline=False)
+    # flame plume rising from the top of the helm, blown back
+    fl = 1.4 * math.sin(t * 2)
+    h = 26 * (1 + 0.06 * math.sin(t * 3))
+    Mf = Mh @ T(-4, 15) @ R(12 + trail * 0.4)
+    cv.poly(ap(Mf, flame_pts(13, h, -0.6, fl)), L_HORN, "#c4321a")
+    cv.poly(ap(Mf, flame_pts(8, h * 0.72, -0.55, fl * 0.8)), L_HORN - 1.5, "#ff8a1f", outline=False)
+    cv.poly(ap(Mf, flame_pts(4, h * 0.42, -0.45, fl * 0.5)), L_HORN - 2.5, "#ffd84a", outline=False)
+    for k, (ex, ez) in enumerate(((-16, 26), (-7, 34), (4, 29))):
         s = ((t / (2 * math.pi)) + k * 0.37) % 1.0
         p = ap1(Mh, (ex - 6 * s - trail * 0.2, ez + 12 * s))
-        r = 1.6 * (1 - s) + 0.4
-        cv.circ(p, r, L_FX_FRONT, "#ffd84a" if k % 2 else "#ff8a1f", outline=0.8)
-    # ember collar
+        cv.circ(p, 1.6 * (1 - s) + 0.4, L_FX_FRONT, "#ffd84a" if k % 2 else "#ff8a1f", outline=0.8)
     H = C["H"]
-    cv.poly(ap(Mr, [(-12, H - 2), (-4, H + 3.5), (6, H + 3.5), (13, H - 2), (4, H - 4), (-6, H - 4)]), L_COLLAR, "#5c120c")
+    cv.poly(ap(Mr, [(-12, H - 2), (-4, H + 3.5), (6, H + 3.5), (13, H - 2), (4, H - 4), (-6, H - 4)]), L_COLLAR, "#4a120c")
 
 
 def extra_earth(cv, C, P, Mr, Mh):
@@ -695,73 +707,59 @@ def extra_earth(cv, C, P, Mr, Mh):
         cv.tube(ap(shell, pts), 0.8, L_SHELL - 2, "#5e5a52", outline=False)
     for cx, cz, rx, rz in ((-8, 21, 13, 5), (6, 20, 8, 4), (-21, 12, 6, 4)):
         cv.ell(shell @ T(cx, cz), rx, rz, L_SHELL - 2.5, "#5f8a2e", outline=0.9)
-    for cx, cz in ((-4, 24), (8, 22.5), (-16, 19)):
-        cv.circ(ap1(shell, (cx, cz)), 1.6, L_SHELL - 3, "#8fc04e", outline=False)
     # front shoulder plate
     cv.poly(ap(Mr, [(2, H * 0.98), (14, H * 1.02), (23, H * 0.78), (21, H * 0.52), (8, H * 0.5), (1, H * 0.7)]), L_PAULDRON, "#a39a88")
     cv.poly(ap(Mr, [(4, H * 0.95), (13, H * 0.98), (19, H * 0.82), (10, H * 0.8)]), L_PAULDRON - 1.5, "#bdb5a2", outline=False)
-    # horns + moss on the mask
-    cv.tube(ap(Mh, [(9, 12), (14, 21), (17, 29), (15, 36)]), [6.2, 4.6, 2.6, 0.6], L_HORN, "#a39a88")
-    cv.tube(ap(Mh, [(-9, 13), (-13, 20), (-17, 23)]), [4.6, 2.8, 0.6], L_HORN + 1, "#8a8274")
-    for cx, cz, rx, rz in ((-6, 15.5, 9, 3.6), (3, 17, 6, 3)):
-        cv.ell(Mh @ T(cx, cz), rx, rz, L_EYES, "#5f8a2e", outline=0.9)
-    cv.circ(ap1(Mh, (-3, 17.5)), 1.4, L_EYES2, "#8fc04e", outline=False)
+    # moss cap with a small sprout
+    sway = math.sin(P["t"]) * 4 + P["trail"] * 0.3
+    cv.tube(ap(Mh, [(2, 16), (2.5, 21), (1.5, 25)]), [1.1, 0.9, 0.7], L_HORN, "#4f7a2a")
+    for ang, ln in ((140 + sway, 8), (40 + sway, 7)):
+        cv.poly(ap(Mh @ T(1.5, 24.5) @ R(ang), leaf_pts(ln, ln * 0.55)), L_HORN - 0.5, "#7fae4a")
+    cv.ell(Mh @ T(-4, 15.5), 13, 4.6, L_EYES, "#5f8a2e", outline=0.9)
+    cv.ell(Mh @ T(9, 15), 6.5, 3.2, L_EYES, "#5f8a2e", outline=0.9)
+    cv.circ(ap1(Mh, (-7, 17.5)), 1.4, L_EYES2, "#8fc04e", outline=False)
 
 
 def extra_water(cv, C, P, Mr, Mh):
     H = C["H"]
     t, tr = P["t"], P["trail"]
-    w = math.sin(t) * 1.5
-    for pts, radii, layer, col in (
-        ([(-2, 19), (-8, 28), (-18, 34), (-30, 35), (-39, 31)], [3.8, 3.3, 2.7, 1.7, 0.5], L_HORN, "#2bb3a8"),
-        ([(4, 20), (2, 31), (-6, 40), (-17, 44), (-27, 43)], [3.3, 2.9, 2.3, 1.5, 0.5], L_HORN + 1.5, "#5fd6cc"),
-    ):
-        moved = []
-        for i, (x, z) in enumerate(pts):
-            k = i / (len(pts) - 1)
-            moved.append((x, z + (w + tr * 0.25) * k * k))
-        cv.tube(ap(Mh, moved), radii, layer, col)
+    # wave crest rising off the back of the hood and curling forward over it
+    w = math.sin(t) * 1.4 + tr * 0.12
+    crest = [(-11, 10), (-11, 21), (-5, 29), (4, 32), (11, 29), (13, 24), (9, 21.5)]
+    crest = [(x - w * (i / 6) * 0.6, z + w * (i / 6)) for i, (x, z) in enumerate(crest)]
+    cv.tube(ap(Mh, crest), [5.0, 4.6, 4.0, 3.3, 2.6, 1.9, 1.0], L_HORN, "#2a62a8")
+    for i in (2, 3, 4):
+        x, z = crest[i]
+        cv.circ(ap1(Mh, (x + 0.5, z + 2.2)), 1.9 - 0.3 * (i - 2), L_HORN - 1.5, C["foam"], outline=0.9)
     # foam hem scallops
     hem_pts = cloak_pts(C, P, C["trim_ext"])
-    lo = sorted(hem_pts, key=lambda p: p[1])[:6]
-    for i, (x, z) in enumerate(lo):
+    for x, z in sorted(hem_pts, key=lambda p: p[1])[:6]:
         cv.circ(ap1(Mr, (x, z + 1.5)), 2.4, L_TRIM - 1.2, C["foam"], outline=0.9)
-    # collar
     cv.poly(ap(Mr, [(-10, H - 1), (-4, H + 3), (7, H + 3), (11, H - 1), (2, H - 3.5)]), L_COLLAR, "#2bb3a8")
 
 
 def extra_wind(cv, C, P, Mr, Mh):
     H = C["H"]
     t, tr = P["t"], P["trail"]
-    # leaf antennae
-    for (pts, leaf_len, layer, sway) in (
-        ([(3, 14), (1, 22), (-4, 28)], 14, L_HORN, 0.0),
-        ([(-5, 13), (-9, 19), (-15, 23)], 11, L_HORN + 2, 1.3),
-    ):
-        s = math.sin(t + sway) * 2 + tr * 0.15
-        pts = [(x, z + s * (i / 2) ** 2) for i, (x, z) in enumerate(pts)]
-        cv.tube(ap(Mh, pts), [1.6, 1.3, 1.0], layer, "#4f8f6a")
-        dx, dz = pts[-1][0] - pts[-2][0], pts[-1][1] - pts[-2][1]
-        ang = math.degrees(math.atan2(dz, dx)) - 10
-        Ml = Mh @ T(*pts[-1]) @ R(ang)
-        cv.poly(ap(Ml, leaf_pts(leaf_len, leaf_len * 0.5, curl=-1.5)), layer - 0.5, "#8fdc9f")
-        cv.tube(ap(Ml, [(1, 0), (leaf_len * 0.8, -1.0)]), 0.45, layer - 1.5, "#4f8f6a", outline=False)
+    # two leaf "ears" on the hood, swept back
+    for (base, ang, ln, layer, ph) in (((-4, 14), 150, 25, L_HORN, 0.0), ((-9, 11), 172, 20, L_HORN + 2, 1.3)):
+        a = ang + math.sin(t + ph) * 6 + tr * 0.4
+        Ml = Mh @ T(*base) @ R(a)
+        cv.poly(ap(Ml, leaf_pts(ln, ln * 0.5, curl=-2.0)), layer, "#7fae86")
+        cv.tube(ap(Ml, [(1, 0), (ln * 0.85, -1.6)]), 0.45, layer - 1.5, "#4f7f5c", outline=False)
     # scarf band + two trailing tails ending in feathers
-    cv.poly(ap(Mr, [(-11, H - 2), (-7, H + 3.5), (8, H + 3.5), (12, H - 1.5), (3, H - 5), (-6, H - 4.5)]), L_COLLAR, "#7cc7f2")
-    for k, (ln, ph, layer, col) in enumerate(((9, 0.0, L_TAIL, "#7cc7f2"), (7, 1.4, L_TAIL + 2, "#5fb0e0"))):
+    cv.poly(ap(Mr, [(-11, H - 2), (-7, H + 3.5), (8, H + 3.5), (12, H - 1.5), (3, H - 5), (-6, H - 4.5)]), L_COLLAR, "#6fa9c9")
+    for k, (ln, ph, layer, col) in enumerate(((9, 0.0, L_TAIL, "#6fa9c9"), (7, 1.4, L_TAIL + 2, "#5a92b5"))):
         base_ang = 180 - 12 - tr + k * 14
         pts = []
         for i in range(ln):
-            d = i * 4.4
-            off = math.sin(t * 1.0 + i * 0.85 + ph) * (0.5 + i * 0.55)
-            bx, bz = dirv(base_ang, d)
-            nx, nz = dirv(base_ang + 90, off)
+            bx, bz = dirv(base_ang, i * 4.4)
+            nx, nz = dirv(base_ang + 90, math.sin(t + i * 0.85 + ph) * (0.5 + i * 0.55))
             pts.append((-6 + bx + nx, H + 1 + bz + nz))
-        radii = [lerp(3.4, 1.8, i / (ln - 1)) for i in range(ln)]
-        cv.tube(ap(Mr, pts), radii, layer, col)
+        cv.tube(ap(Mr, pts), [lerp(3.4, 1.8, i / (ln - 1)) for i in range(ln)], layer, col)
         dx, dz = pts[-1][0] - pts[-2][0], pts[-1][1] - pts[-2][1]
         Mf = Mr @ T(*pts[-1]) @ R(math.degrees(math.atan2(dz, dx)))
-        cv.poly(ap(Mf, leaf_pts(10, 5.5)), layer - 0.6, "#ffffff")
+        cv.poly(ap(Mf, leaf_pts(10, 5.5)), layer - 0.6, "#e6eee6")
 
 
 # ---- weapons (local +x = blade direction, origin at the hand) -----------------------
@@ -798,7 +796,8 @@ def weapon_wind(cv, C, Mw, layer):
     cv.poly(ap(Mw @ T(-6, 0) @ R(200), leaf_pts(9, 3.5, curl=2)), layer + 1.2, "#7cc7f2")
 
 
-EYES = dict(fire=eyes_fire, earth=eyes_earth, water=eyes_water, wind=eyes_wind)
+HEAD = dict(earth=head_earth)
+FACE = dict(fire=face_fire, earth=face_earth, water=face_water, wind=face_wind)
 EXTRA = dict(fire=extra_fire, earth=extra_earth, water=extra_water, wind=extra_wind)
 WEAPON = dict(fire=weapon_fire, earth=weapon_earth, water=weapon_water, wind=weapon_wind)
 
@@ -1019,7 +1018,7 @@ def skill_water(cv, i, n, W, H):
     # two curling waves rolling outward from the hero (stronger toward the front/right)
     for side, strength in ((1, 1.0), (-1, 0.75)):
         hgt = 70 * rise * fade * strength + 6
-        reach = 30 + 66 * p * strength
+        reach = 30 + 58 * p * strength
         base_x = cx + side * reach * 0.4
         pts = [(cx + side * 6, 0)]
         m = 12
@@ -1150,16 +1149,16 @@ def lineup(out_root, elements):
 # --------------------------------------------------------------------------------------
 STATS = {
     "fire": dict(move_speed=1.2, jump_force=1.05, max_health=4, attack_range=0.8, attack_speed=1.25, dash_cooldown=0.8,
-                 body="short and stocky", weapon="short curved ember blade",
+                 body="short and stocky, iron helm with a glowing visor and a flame plume", weapon="short curved ember blade",
                  skill="Fireball: a fast horizontal projectile that leaves a flame trail and deals high damage on hit."),
     "earth": dict(move_speed=0.8, jump_force=0.85, max_health=8, attack_range=1.1, attack_speed=0.75, dash_cooldown=1.3,
-                  body="wide and heavy, rocky shell", weapon="stone club",
+                  body="wide and heavy, craggy stone head with a moss cap, rocky back shell", weapon="stone club",
                   skill="Rock Spikes: slams the ground; stone spikes erupt in front of the hero, damaging and knocking up enemies in an area."),
     "water": dict(move_speed=1.0, jump_force=1.0, max_health=5, attack_range=1.4, attack_speed=0.9, dash_cooldown=1.0,
-                  body="tall and slender, long cloak", weapon="long spear-nail",
+                  body="tall and slender, deep-blue hood with a curling wave crest, long robe", weapon="long spear",
                   skill="Healing Tide: a water wave bursts around the hero, restoring 1-2 health and pushing nearby enemies away."),
     "wind": dict(move_speed=1.3, jump_force=1.2, max_health=3, attack_range=0.9, attack_speed=1.15, dash_cooldown=0.6,
-                 body="small and light, trailing scarf and leaf antennae", weapon="light leaf rapier",
+                 body="small and light, leaf-eared hood, trailing scarf", weapon="light leaf rapier",
                  skill="Gust Tornado: a small tornado travels forward, lifting and repeatedly hitting enemies caught in it; can also boost the hero upward."),
 }
 
@@ -1188,7 +1187,7 @@ def write_manifest(out_root):
             animations=anims,
             skill=dict(path=f"{folder}/skill/skill_NN.png", frames=found, width=sk["size"][0], height=sk["size"][1],
                        loop=sk["loop"], description=STATS[el]["skill"]),
-            palette=dict(cloak=CHARS[el]["cloak"], trim=CHARS[el]["trim"], mask=CHARS[el]["mask"], fx=CHARS[el]["fx"]),
+            palette=dict(cloak=CHARS[el]["cloak"], trim=CHARS[el]["trim"], head=CHARS[el]["head"], fx=CHARS[el]["fx"]),
             stats={k: v for k, v in STATS[el].items() if k != "skill"},
         )
     with open(os.path.join(out_root, "manifest.json"), "w", encoding="utf-8") as f:
@@ -1213,13 +1212,14 @@ def main():
     for el in elements:
         C = CHARS[el]
         out_dir = os.path.join(args.out, el)
+        look = dict(outline=[hex_rgb8(C["outline"])], emissive=[hex_rgb8(c) for c in C["emissive"]], seed=sum(map(ord, el)))
         for name, cnt, (w, h) in ANIMS:
             if only and name not in only:
                 continue
             for k, P in enumerate(anim_poses(el, C, name, cnt), start=1):
                 clear_scene()
                 draw_hero(Canvas(C["outline"]), el, C, P)
-                render_frame(w, h, args.ss, os.path.join(out_dir, name, f"{name}_{k:02d}.png"), tmpdir)
+                render_frame(w, h, args.ss, os.path.join(out_dir, name, f"{name}_{k:02d}.png"), tmpdir, look, settle=name != "jump")
             print(f"[hero_sprites] {el}/{name}: {cnt} frames")
         if not only or "skill" in only:
             sk = SKILLS[el]
@@ -1227,7 +1227,7 @@ def main():
             for k in range(sk["frames"]):
                 clear_scene()
                 SKILL_FN[el](Canvas(C["outline"], outline=1.4), k, sk["frames"], w, h)
-                render_frame(w, h, args.ss, os.path.join(out_dir, "skill", f"skill_{k + 1:02d}.png"), tmpdir)
+                render_frame(w, h, args.ss, os.path.join(out_dir, "skill", f"skill_{k + 1:02d}.png"), tmpdir, look)
             print(f"[hero_sprites] {el}/skill: {sk['frames']} frames")
         rows = [(n, n, c) for n, c, _ in ANIMS] + [("skill", "skill", SKILLS[el]["frames"])]
         if all(os.path.exists(os.path.join(out_dir, f, f"{nm}_01.png")) for f, nm, _ in rows):

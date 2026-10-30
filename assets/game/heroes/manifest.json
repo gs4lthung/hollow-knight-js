@@ -74,9 +74,9 @@
         "description": "Fireball: a fast horizontal projectile that leaves a flame trail and deals high damage on hit."
       },
       "palette": {
-        "cloak": "#a3241a",
-        "trim": "#ff8a1f",
-        "mask": "#f7b54e",
+        "cloak": "#7a2418",
+        "trim": "#c8561e",
+        "head": "#3e2c27",
         "fx": [
           "#ffd84a",
           "#ff8a1f",
@@ -90,7 +90,7 @@
         "attack_range": 0.8,
         "attack_speed": 1.25,
         "dash_cooldown": 0.8,
-        "body": "short and stocky",
+        "body": "short and stocky, iron helm with a glowing visor and a flame plume",
         "weapon": "short curved ember blade"
       }
     },
@@ -165,7 +165,7 @@
       "palette": {
         "cloak": "#6e4a2a",
         "trim": "#5f8a2e",
-        "mask": "#cbc3ad",
+        "head": "#8a8172",
         "fx": [
           "#a39a88",
           "#6e4a2a",
@@ -179,7 +179,7 @@
         "attack_range": 1.1,
         "attack_speed": 0.75,
         "dash_cooldown": 1.3,
-        "body": "wide and heavy, rocky shell",
+        "body": "wide and heavy, craggy stone head with a moss cap, rocky back shell",
         "weapon": "stone club"
       }
     },
@@ -252,9 +252,9 @@
         "description": "Healing Tide: a water wave bursts around the hero, restoring 1-2 health and pushing nearby enemies away."
       },
       "palette": {
-        "cloak": "#1f43a0",
+        "cloak": "#234588",
         "trim": "#2bb3a8",
-        "mask": "#e2f3ff",
+        "head": "#182f66",
         "fx": [
           "#e9fbff",
           "#5fd6cc",
@@ -268,8 +268,8 @@
         "attack_range": 1.4,
         "attack_speed": 0.9,
         "dash_cooldown": 1.0,
-        "body": "tall and slender, long cloak",
-        "weapon": "long spear-nail"
+        "body": "tall and slender, deep-blue hood with a curling wave crest, long robe",
+        "weapon": "long spear"
       }
     },
     "wind": {
@@ -341,9 +341,9 @@
         "description": "Gust Tornado: a small tornado travels forward, lifting and repeatedly hitting enemies caught in it; can also boost the hero upward."
       },
       "palette": {
-        "cloak": "#bfe9c6",
-        "trim": "#86c99a",
-        "mask": "#f5fff7",
+        "cloak": "#a8c4ad",
+        "trim": "#6f9e7c",
+        "head": "#93bf9c",
         "fx": [
           "#ffffff",
           "#9fe8c0",
@@ -357,7 +357,7 @@
         "attack_range": 0.9,
         "attack_speed": 1.15,
         "dash_cooldown": 0.6,
-        "body": "small and light, trailing scarf and leaf antennae",
+        "body": "small and light, leaf-eared hood, trailing scarf",
         "weapon": "light leaf rapier"
       }
     }
