@@ -5,6 +5,7 @@ import { GAME } from "../game.js";
 import { Object } from "../parent/object.js";
 import { Setting } from "../setting.js";
 import { UI } from "./ui.js";
+import { Shop } from "../shop.js";
 
 export class Rest extends Object {
   static GenerateRest() {
@@ -20,16 +21,19 @@ export class Rest extends Object {
     return obj;
   }
 
+  // Interact at the bench: rest (full hearts) and open the shop, or close it again
   listener(e) {
     const ui = UI.getInstance();
     const game = GAME.getInstance();
-    if (Setting.PLAYER_INTERACT.includes(e.key)) {
-      /* Getting the instance of the UI class. */
+    if (!Setting.PLAYER_INTERACT.includes(e.key) || e.repeat || game.player.dead) return;
+    const shop = Shop.getInstance();
+    if (!shop.isOpen) {
       ui.whiteScreen(200, 0.5);
       game.audio.play(MyAudio.BENCH_REST, false);
       game.player.maxHealth();
       ui.changeHealth(game.player.health);
     }
+    shop.toggle();
   }
 
   logic() {
@@ -51,6 +55,7 @@ export class Rest extends Object {
     } else {
       window.removeEventListener("keydown", this.listener);
       game.ui.hideRest();
+      Shop.getInstance().close();
     }
   }
 

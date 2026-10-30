@@ -104,6 +104,12 @@ export class Setting {
   static CAMERA_TEAMMATE_MARGIN = 400; // extra space kept around far teammates
   static ENEMY_HIT_FLASH_DECAY = 5; // how fast the white hit flash fades
 
+  // Co-op revive
+  static REVIVE_TIME = 2; // seconds holding interact next to a downed teammate
+  static REVIVE_RANGE = 130; // px between the two knights' centres
+  static PARTY_WIPE_TIME = 4000; // ms of "party has fallen" before everyone respawns
+  static SCOREBOARD_TIME = 9000; // ms the scoreboard shows before the credits
+
   static TOTAL_PLATFORM = 10;
   static PLATFORM_HEIGHT = 30;
 

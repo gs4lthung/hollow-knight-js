@@ -85,11 +85,28 @@
               loop
             ></video>
             <div class="content">
-              <div class="center" style="margin-bottom: 30px">
+              <div class="center" style="margin-bottom: 8px">
                 <h1 class="wcl-logo">WCL Knights</h1>
               </div>
+              <div class="name-row">
+                <label for="player-name">Your name</label>
+                <input id="player-name" type="text" placeholder="Knight" autocomplete="off" spellcheck="false" />
+              </div>
               <div id="hero-select"></div>
-              <h1 id="start">Start Game</h1>
+              <div id="lobby">
+                <div class="lobby-slots"></div>
+                <div class="lobby-link"></div>
+                <div class="lobby-actions">
+                  <h1 id="lobby-ready" class="lobby-button">Ready</h1>
+                  <h1 id="lobby-start" class="lobby-button">Start</h1>
+                </div>
+                <div class="lobby-hint"></div>
+              </div>
+              <div class="start-options">
+                <h1 id="start-solo" class="start-option" data-mode="solo">Solo</h1>
+                <h1 id="start-coop" class="start-option" data-mode="coop">Play with Friends</h1>
+              </div>
+              <div id="pad-hint"></div>
             </div>
           </div>
           <!-- Black Screen And White Screen -->
@@ -97,13 +114,40 @@
           <div id="white-screen"></div>
 
           <!-- Rest Text -->
-          <div id="rest">Rest</div>
+          <div id="rest">E - Rest &amp; Shop</div>
+
+          <!-- Bench shop -->
+          <div id="shop">
+            <h1>Bench Shop</h1>
+            <div class="shop-coins"></div>
+            <div class="shop-items"></div>
+            <div class="shop-hint">Up/Down choose · Z or A buy · E or B close</div>
+            <div class="shop-close">Close</div>
+          </div>
 
           <!-- LAN co-op status -->
           <div id="net-status"></div>
 
           <!-- Fps Counter -->
           <div id="fps">0</div>
+
+          <!-- Co-op: downed / party wipe messages -->
+          <div id="downed-banner">You're down - a teammate can revive you</div>
+          <div id="party-fallen">
+            <h1>The party has fallen</h1>
+            <p>Everyone gets back up in a moment</p>
+          </div>
+
+          <!-- End-of-game scoreboard -->
+          <div id="scoreboard">
+            <h1>Victory</h1>
+            <table>
+              <thead>
+                <tr><th>Player</th><th>Kills</th><th>Boss damage</th><th>Deaths</th><th>Revives</th><th></th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
 
           <!-- Boss health bar -->
           <div id="boss-bar">
@@ -184,6 +228,7 @@
               <img class="health" src="assets/game/ui/health.png" alt="" />
             </div>
             <div id="money-text">0</div>
+            <div id="door-progress"></div>
           </div>
           <canvas id="myCanvas"> </canvas>
         </div>

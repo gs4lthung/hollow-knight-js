@@ -10,7 +10,9 @@ import {
   PLAYER_COLORS,
   RemotePlayer,
   drawPlayerLabel,
+  drawReviveHint,
 } from "../model/remoteplayer.js";
+import { Setting } from "../setting.js";
 import { MyAudio } from "./audio.js";
 import {
   BOOFLY_CONF,
@@ -22,6 +24,21 @@ import {
 } from "./file.js";
 
 const SEND_INTERVAL = 1 / 30;
+
+// Per-tab code so a refresh mid-game gets the same slot back (see server.js).
+// sessionStorage survives a refresh but not closing the tab.
+function rejoinToken() {
+  try {
+    let token = sessionStorage.getItem("wcl-knights-rejoin");
+    if (!token) {
+      token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      sessionStorage.setItem("wcl-knights-rejoin", token);
+    }
+    return token;
+  } catch {
+    return "";
+  }
+}
 const MAX_PLAYERS = 4;
 
 // LAN co-op client. Talks to server.js over a WebSocket.
@@ -46,7 +63,32 @@ export class Network {
     this.players = new Map(); // id -> RemotePlayer
     this.sendTimer = 0;
     this.statusText = "";
-    this.ready = this.connect();
+    this.joinUrls = [];
+    this.ready = Promise.resolve(false); // solo until goOnline() is called
+    this.inGame = false; // the group already started when we joined
+    this.lobby = []; // [{ id, slot, hero, ready, host }]
+    this.onLobby = () => {};
+    this.onStart = () => {};
+  }
+
+  sendLobby(hero, ready, name) {
+    this.send({ t: "lobby", hero, ready, name });
+  }
+
+  // Host only: everyone in the lobby starts together
+  requestStart() {
+    this.send({ t: "start" });
+  }
+
+  // "Play with Friends": join the LAN game, or fall back to solo with a message
+  goOnline() {
+    this.ready = this.connect().then((online) => {
+      if (!online && !this.statusText) {
+        this.setStatus("No LAN server found - playing solo");
+      }
+      return online;
+    });
+    return this.ready;
   }
 
   connect() {
@@ -63,7 +105,7 @@ export class Network {
       let ws;
       try {
         const protocol = location.protocol === "https:" ? "wss" : "ws";
-        ws = new WebSocket(`${protocol}://${location.host}/ws`);
+        ws = new WebSocket(`${protocol}://${location.host}/ws?token=${rejoinToken()}`);
       } catch {
         return settle(false);
       }
@@ -108,8 +150,18 @@ export class Network {
         this.id = msg.id;
         this.slot = msg.slot;
         this.isHost = msg.host;
+        this.joinUrls = msg.urls || [];
+        this.inGame = !!msg.inGame;
+        this.rejoined = !!msg.rejoined;
         this.updateStatus();
         settle(true);
+        return;
+      case "lobby":
+        this.lobby = msg.players;
+        this.onLobby(this.lobby);
+        return;
+      case "start":
+        this.onStart();
         return;
       case "full":
         this.setStatus("Server full (4/4) - single player");
@@ -122,6 +174,7 @@ export class Network {
           GAME.getInstance().becomeHost();
         }
         this.updateStatus();
+        this.onLobby(this.lobby);
         return;
       }
       case "leave":
@@ -151,7 +204,7 @@ export class Network {
       case "hit":
         if (this.isHost) {
           const enemy = game.enemies.find((e) => e.netId === msg.id);
-          if (enemy) enemy.hit(msg.n);
+          if (enemy) game.applyHit(enemy, msg.n, this.slotOf(msg.from));
         }
         break;
       case "boss":
@@ -163,6 +216,9 @@ export class Network {
       case "fx":
         this.onEffect(game, msg);
         break;
+      case "revive":
+        game.revivePlayer();
+        break;
     }
   }
 
@@ -172,7 +228,11 @@ export class Network {
         if (!game.bossFight) game.changeBossScene();
         break;
       case "finish":
+        game.scoreRows = msg.rows;
         game.finishGame();
+        break;
+      case "wipe":
+        game.partyWipe();
         break;
       case "shake":
         if (msg.s === 2) game.audio.play(MyAudio.FALSE_STRIKE, false);
@@ -229,6 +289,12 @@ export class Network {
     return enemy;
   }
 
+  // Slot of a connected player by id (the scoreboard is kept per slot so it survives rejoins)
+  slotOf(id) {
+    const player = this.players.get(id) || this.lobby.find((p) => p.id === id);
+    return player ? player.slot : id;
+  }
+
   remotePlayers() {
     return [...this.players.values()];
   }
@@ -241,7 +307,7 @@ export class Network {
     this.sendTimer = 0;
 
     const game = GAME.getInstance();
-    this.send({ ...game.player.netPlayerState(), s: this.slot });
+    this.send({ ...game.player.netPlayerState(), s: this.slot, n: game.player.name });
     if (this.isHost) this.send(game.buildSnapshot());
   }
 
@@ -251,14 +317,25 @@ export class Network {
     const game = GAME.getInstance();
     this.players.forEach((player) => player.render());
     drawPlayerLabel(game.ctx, game.player, this.slot);
+
+    const p = game.player;
+    if (p.reviveCandidate) {
+      const progress = p.reviveTarget ? p.reviveProgress / Setting.REVIVE_TIME : 0;
+      drawReviveHint(game.ctx, p.reviveCandidate, progress);
+    }
   }
 
   updateStatus() {
     if (!this.active) return;
+    // The boss door needs more kills with more players
+    if (GAME.START) GAME.getInstance().ui.changeMoney(GAME.getInstance().ui.money);
     const count = this.players.size + 1;
-    this.setStatus(
-      `P${this.slot + 1}${this.isHost ? " · Host" : ""} · ${count}/${MAX_PLAYERS} players`
-    );
+    let text = `P${this.slot + 1}${this.isHost ? " · Host" : ""} · ${count}/${MAX_PLAYERS} players`;
+    // While waiting alone, tell the host which link friends should open
+    if (count == 1 && this.joinUrls.length) {
+      text += ` · friends join at ${this.joinUrls[0]}`;
+    }
+    this.setStatus(text);
   }
 
   setStatus(text) {

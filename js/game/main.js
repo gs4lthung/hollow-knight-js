@@ -22,9 +22,27 @@ import { Particle } from "./model/particle.js";
 import { Meteor } from "./model/meteor.js";
 import { Network } from "./facade/network.js";
 import { HeroSelect } from "./heroselect.js";
+import { Lobby } from "./lobby.js";
+import { getPlayerName, setupNameInput } from "./playername.js";
+import { GamepadInput, PAD_BUTTON } from "./gamepad.js";
+import { Shop } from "./shop.js";
 
 const net = Network.getInstance();
 const heroSelect = new HeroSelect("#hero-select");
+const lobby = new Lobby(net, heroSelect);
+net.onStart = () => beginGame();
+setupNameInput(() => lobby.sync());
+
+// Controller in the menus: A starts (or toggles Ready in the lobby), Start lets the host begin
+const gamepad = new GamepadInput();
+gamepad.onMenuButton = (button) => {
+  if (lobby.visible) {
+    if (button === PAD_BUTTON.A) lobby.toggleReady();
+    if (button === PAD_BUTTON.START) lobby.start();
+  } else if (button === PAD_BUTTON.A) {
+    startGame(lastMode());
+  }
+};
 
 function start() {
   if (GAME.START) {
@@ -47,6 +65,10 @@ function start() {
   );
 
   player.setHero(heroSelect.lock());
+  player.name = getPlayerName();
+  player.loadRunStats(net.active && net.rejoined);
+  game.ui.changeMoney(game.ui.money);
+  $("#player-name").blur();
   player.jumping = true;
   player.changeSprite("jump");
 
@@ -117,7 +139,10 @@ function start() {
     if (!game.pause) game.cheat.addKeys(e.key);
   });
 
+  const shop = Shop.getInstance();
+
   window.addEventListener("keydown", (e) => {
+    if (shop.isOpen) return; // the shop has the keys while it's open
     if (e.key == "Escape") {
       game.pauseGame(true);
     }
@@ -140,6 +165,7 @@ function start() {
   });
 
   window.addEventListener("keydown", (e) => {
+    if (shop.isOpen) return;
     if (game.canMove && !game.pause) {
       if (Setting.PLAYER_JUMP.includes(e.key)) {
         player.jump();
@@ -167,19 +193,48 @@ function start() {
 
 let starting = false;
 
-async function startGame() {
+const MODE_KEY = "wcl-knights-mode";
+
+function lastMode() {
+  try {
+    return localStorage.getItem(MODE_KEY) === "coop" ? "coop" : "solo";
+  } catch {
+    return "solo";
+  }
+}
+
+// mode: "solo" stays offline, "coop" joins the LAN game on this server
+async function startGame(mode) {
   if (starting) return;
   starting = true;
+  try {
+    localStorage.setItem(MODE_KEY, mode);
+  } catch {
+    // not remembered - fine
+  }
 
-  // When Start Remove the Footer
-  $("#root-footer").hide();
-
-  $("#start-menu").fadeOut();
   // Fullscreen must be requested straight from the click, before any await
   if (!GAME.getInstance().isFullscreen()) GAME.getInstance().fullscreen();
 
-  // Wait to learn whether we're the host before building the world
-  await net.ready;
+  if (mode === "coop") {
+    const online = await net.goOnline();
+    // Friends gather in the lobby first, unless their game is already running
+    if (online && !net.inGame) {
+      lobby.show();
+      return;
+    }
+  }
+  beginGame();
+}
+
+function beginGame() {
+  if (GAME.START) return;
+  lobby.hide();
+  gamepad.inGame = true;
+
+  // When Start Remove the Footer
+  $("#root-footer").hide();
+  $("#start-menu").fadeOut();
   start();
 }
 
@@ -191,12 +246,15 @@ document.addEventListener("fullscreenchange", () => {
 
 // startGame();
 
+// Enter repeats whichever mode was used last time
+$(`.start-option[data-mode="${lastMode()}"]`).addClass("last-used");
+
 window.addEventListener("keypress", (e) => {
   if (e.key == "Enter") {
-    startGame();
+    startGame(lastMode());
   }
 });
 
-$("#start").click(() => {
-  startGame();
+$(".start-option").click((e) => {
+  startGame($(e.currentTarget).data("mode"));
 });

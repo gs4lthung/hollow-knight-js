@@ -57,8 +57,15 @@ This is a browser-based adaptation of the beloved indie game Hollow Knight. Play
    The server prints two kinds of link: `http://localhost:3000/game.html` for this computer, and `http://<your-ip>:3000/game.html` for friends on the same network.
 
 3. **Play together (LAN co-op, up to 4 players)**
-   - Everyone opens the link in a browser and presses **Start Game**.
-   - The first player to join is the host and runs the enemies; keep the host's game tab in front.
+   - Everyone opens the link, picks a character and presses **Play with Friends** (**Solo** plays offline).
+   - In the lobby everyone presses **Ready**; the host (first to join) presses **Start** and you all begin
+     together. The lobby shows the link friends should open. Friends who join later drop straight in.
+   - Type a name on the start screen; it shows above your knight, in the lobby and on the scoreboard.
+   - Refreshed or dropped out? Rejoin within a minute to get your slot, colour and score back.
+   - The host runs the enemies; keep the host's game tab in front.
+   - Downed teammates can be revived: stand next to them and hold **E** for 2 seconds. If everyone is
+     down, the party respawns (and the boss recovers). A scoreboard with kills, boss damage, deaths,
+     revives and a title for each player shows before the credits.
    - On Windows, allow Node.js through the firewall (private networks) the first time a friend connects.
    - Opened without the server (any other static file server), the game runs in single-player mode.
 
@@ -71,10 +78,29 @@ This is a browser-based adaptation of the beloved indie game Hollow Knight. Play
 - **X**: Attack with nail
 - **S**: Dash
 - **A**: Blast attack (charged by hitting enemies)
-- **Space / E**: Interact (boss door, rest at bench)
+- **Space / E**: Interact (boss door, rest at bench); hold next to a downed teammate to revive
 - **Escape**: Pause game
 - **F**: Toggle fullscreen
 - **Enter**: Start game
+
+**Controller** (Xbox / PlayStation layout): stick or D-pad move, **A** jump, **X** attack,
+**B** dash, **Y** skill, **LB/RB** interact (hold to revive), **Start** pause.
+On the start screen the D-pad picks a knight and **A** starts; in the lobby **A** toggles Ready
+and **Start** lets the host begin.
+
+### Bench Shop
+Press **E** at the bench to rest (full hearts) and open the shop. Every kill by anyone on the
+team gives each player a coin; spend them on upgrades: **Mask Shard** (+1 heart),
+**Sharpened Nail** (+1 damage), **Soul Catcher** (skill charges faster), **Quick Slash**
+(faster attacks), **Long Nail** (more reach). The HUD shows your coins and the kills the team
+still needs to open the boss door. Alone the game pauses while you shop; with friends it
+keeps going, but you can't be hurt at the bench.
+
+### Elemental Combos
+When two elements' skills touch, they combine:
+- **Fire + Wind = Fire Tornado**: the tornado ignites, hits harder and faster, lasts longer
+- **Fire + Water = Steam Burst**: an explosion around the water wave
+- **Earth + Wind = Sandstorm**: the tornado grows and hits harder
 
 ### Gameplay Tips
 - Defeat enemies to collect geo (money)

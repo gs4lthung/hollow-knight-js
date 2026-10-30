@@ -83,6 +83,107 @@ export class GAME {
 
     // Timers that run on game time, so they stop while the game is paused
     this.timers = [];
+
+    // Floating combat text (combo names)
+    this.floatTexts = [];
+
+    // Scoreboard: kills and boss damage per player, kept by the host
+    this.stats = {};
+    this.scoreRows = null;
+    this.wipePending = false;
+  }
+
+  floatText(text, x, y, color = "white") {
+    this.floatTexts.push({ text, x, y, color, age: 0 });
+  }
+
+  renderFloatTexts() {
+    const life = 1.4;
+    this.floatTexts = this.floatTexts.filter((t) => (t.age += this.delta) < life);
+    this.floatTexts.forEach((t) => {
+      this.ctx.save();
+      this.ctx.globalAlpha = Math.min(1, (life - t.age) * 2);
+      this.ctx.font = "bold 34px sans-serif";
+      this.ctx.textAlign = "center";
+      this.ctx.lineWidth = 5;
+      this.ctx.strokeStyle = "black";
+      this.ctx.fillStyle = t.color;
+      const y = t.y - t.age * 60;
+      this.ctx.strokeText(t.text, t.x, y);
+      this.ctx.fillText(t.text, t.x, y);
+      this.ctx.restore();
+    });
+  }
+
+  myStatsKey() {
+    return this.isNetworked() ? String(this.net.slot) : "me";
+  }
+
+  statsFor(key) {
+    key = String(key);
+    if (!this.stats[key]) this.stats[key] = { kills: 0, bossDamage: 0 };
+    return this.stats[key];
+  }
+
+  // Host side: apply a hit and credit the attacker for kills / boss damage
+  applyHit(enemy, n, attackerKey) {
+    const isBoss = enemy instanceof Boss;
+    const wasDown = enemy.dead || enemy.death;
+    const bossBefore = isBoss ? enemy.health + Math.max(0, enemy.armor) : 0;
+    enemy.hit(n);
+    const stats = this.statsFor(attackerKey);
+    if (isBoss) {
+      stats.bossDamage += Math.max(0, bossBefore - (enemy.health + Math.max(0, enemy.armor)));
+    } else if (!wasDown && enemy.dead && enemy.constructor.NET_KIND !== "m") {
+      stats.kills += 1;
+    }
+  }
+
+  // Everyone in the game right now, with their per-player numbers
+  buildScoreRows() {
+    const players = [{ key: this.myStatsKey(), slot: this.net?.slot ?? 0, p: this.player }];
+    if (this.net) {
+      this.net.remotePlayers().forEach((p) => players.push({ key: String(p.slot), slot: p.slot, p }));
+    }
+    return players
+      .map(({ key, slot, p }) => ({
+        slot,
+        name: p.name || "",
+        hero: p.heroId,
+        kills: this.statsFor(key).kills,
+        bossDamage: this.statsFor(key).bossDamage,
+        deaths: p.deaths || 0,
+        revives: p.revives || 0,
+      }))
+      .sort((a, b) => a.slot - b.slot);
+  }
+
+  // Team wipe: everyone is down, so the host restarts the fight for all
+  checkPartyWipe() {
+    if (!this.hasPeers() || !this.isHost() || this.wipePending) return;
+    const everyone = [this.player, ...this.net.remotePlayers()];
+    if (everyone.every((p) => p.dead)) {
+      this.net.send({ t: "ev", e: "wipe" });
+      this.partyWipe();
+    }
+  }
+
+  partyWipe() {
+    if (this.wipePending) return;
+    this.wipePending = true;
+    this.ui.showDowned(false);
+    this.ui.partyFallen(true);
+    setTimeout(() => {
+      this.ui.partyFallen(false);
+      this.respawnPlayer();
+      if (this.isHost() && this.bossFight && this.boss && !this.boss.death) {
+        // The boss recovers and its meteors vanish
+        this.boss.health = this.boss.maxHealth;
+        this.boss.armor = this.boss.maxArmor;
+        this.enemies = this.enemies.filter((e) => e === this.boss);
+      }
+      this.wipePending = false;
+    }, Setting.PARTY_WIPE_TIME);
   }
 
   after(seconds, callback) {
@@ -226,7 +327,7 @@ export class GAME {
       }
       return;
     }
-    enemy.hit(n);
+    this.applyHit(enemy, n, this.myStatsKey());
   }
 
   buildSnapshot() {
@@ -242,10 +343,12 @@ export class GAME {
       m: this.ui.money,
       door: this.bossDoor.open ? 1 : 0,
       boss: this.bossFight ? 1 : 0,
+      st: this.stats, // so a promoted host keeps the scoreboard
     };
   }
 
   applySnapshot(s) {
+    if (s.st) this.stats = s.st;
     if (s.boss && !this.bossFight) this.changeBossScene();
     if (s.door && !this.bossDoor.open) this.bossDoor.openDoor();
     if (s.m !== this.ui.money) {
@@ -288,6 +391,8 @@ export class GAME {
     const p = this.player;
     p.state = "";
     p.dead = false;
+    p.downed = false;
+    this.ui.showDowned(false);
     p.fade = false;
     p.alpha = 1;
     p.canCollide = true;
@@ -305,6 +410,19 @@ export class GAME {
     p.jumping = true;
     p.changeSprite("jump");
     p.invicible = true; // brief spawn protection
+  }
+
+  // A teammate revived us: stand up where we fell with half our hearts
+  revivePlayer() {
+    const p = this.player;
+    if (!p.dead) return;
+    const { x, y } = p;
+    this.respawnPlayer();
+    p.x = x;
+    p.y = y - 20;
+    p.health = Math.ceil(p.maxHealthValue / 2);
+    this.ui.changeHealth(p.health);
+    this.ui.whiteScreen(150, 0.3);
   }
 
   requestBossScene() {
@@ -396,8 +514,9 @@ export class GAME {
   finishGame() {
     if (this.finished) return;
     this.finished = true;
-    if (this.isNetworked() && this.isHost()) {
-      this.net.send({ t: "ev", e: "finish" });
+    if (this.isHost()) {
+      this.scoreRows = this.buildScoreRows();
+      if (this.isNetworked()) this.net.send({ t: "ev", e: "finish", rows: this.scoreRows });
     }
     this.audio.fadeVideo();
 
@@ -412,10 +531,12 @@ export class GAME {
       $("#black-screen").css("opacity", 0.4);
       $("#black-screen").fadeIn(1000);
 
+      // Scoreboard first, then the credits roll
+      if (this.scoreRows) this.ui.showScoreboard(this.scoreRows);
       setTimeout(() => {
-        // Set credit scroll up
+        this.ui.hideScoreboard();
         this.credit = true;
-      }, 3000);
+      }, Setting.SCOREBOARD_TIME);
     }, 3000);
   }
 
@@ -607,6 +728,7 @@ export class GAME {
     // With other players connected the world keeps running while the menu is open
     if (!this.pause || this.hasPeers()) {
       this.tickTimers(this.delta);
+      this.checkPartyWipe();
       this.checkCredit();
       this.updateBossBar();
       this.updateCamera();
@@ -640,6 +762,7 @@ export class GAME {
         obj.render();
       });
       this.renderParticle();
+      this.renderFloatTexts();
       if (this.useCamera) this.camera.end();
     }
     if (this.net && this.player) this.net.tick(this.delta);

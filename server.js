@@ -94,9 +94,35 @@ function serveStatic(req, res) {
 const server = http.createServer(serveStatic);
 const wss = new WebSocketServer({ server, path: "/ws" });
 
+// Links friends on the LAN can open (sent to players so the host can show them)
+const lanUrls = Object.values(os.networkInterfaces())
+  .flat()
+  .filter((net) => net && net.family === "IPv4" && !net.internal)
+  // Home routers usually use 192.168.x.x; list those first (172.x is often a virtual adapter)
+  .sort((a, b) => b.address.startsWith("192.168.") - a.address.startsWith("192.168."))
+  .map((net) => `http://${net.address}:${PORT}/game.html`);
+
 const clients = new Map(); // id -> { ws, slot }
 let nextId = 1;
 let hostId = null;
+let inGame = false; // lobby until the host starts; later joiners drop straight in
+
+// Rejoin: a player who drops out of a running game keeps their slot for a while
+const REJOIN_MS = 60000;
+const reserved = new Map(); // rejoin token -> { slot, until }
+
+function purgeReservations() {
+  const now = Date.now();
+  reserved.forEach((r, token) => {
+    if (r.until < now) reserved.delete(token);
+  });
+  // The game world lives in the players' browsers: once everyone has left there's
+  // nothing to rejoin, so the next group starts fresh in the lobby
+  if (clients.size === 0) {
+    reserved.clear();
+    inGame = false;
+  }
+}
 
 function send(ws, msg) {
   if (ws.readyState === ws.OPEN) ws.send(msg);
@@ -109,14 +135,28 @@ function broadcast(msg, exceptId) {
   });
 }
 
+// Lobby: who's here, which hero they picked and whether they're ready
+function broadcastLobby() {
+  const players = [...clients.entries()]
+    .map(([id, c]) => ({ id, slot: c.slot, name: c.name, hero: c.hero, ready: c.ready, host: id === hostId }))
+    .sort((a, b) => a.slot - b.slot);
+  broadcast({ t: "lobby", players, inGame });
+}
+
 function freeSlot() {
   const used = new Set([...clients.values()].map((c) => c.slot));
+  reserved.forEach((r) => used.add(r.slot));
   for (let i = 0; i < MAX_PLAYERS; i++) if (!used.has(i)) return i;
   return -1;
 }
 
-wss.on("connection", (ws) => {
-  const slot = freeSlot();
+wss.on("connection", (ws, req) => {
+  purgeReservations();
+  const token = (new URL(req.url, "http://x").searchParams.get("token") || "").slice(0, 40);
+  const reservation = token && reserved.get(token);
+  const rejoined = !!reservation;
+  if (rejoined) reserved.delete(token);
+  const slot = rejoined ? reservation.slot : freeSlot();
   if (slot === -1) {
     send(ws, JSON.stringify({ t: "full" }));
     ws.close();
@@ -124,9 +164,10 @@ wss.on("connection", (ws) => {
   }
 
   const id = nextId++;
-  clients.set(id, { ws, slot });
+  clients.set(id, { ws, slot, token, hero: "knight", ready: false });
   if (hostId === null) hostId = id;
-  send(ws, JSON.stringify({ t: "welcome", id, slot, host: hostId === id }));
+  send(ws, JSON.stringify({ t: "welcome", id, slot, host: hostId === id, urls: lanUrls, inGame, rejoined }));
+  broadcastLobby();
   console.log(`Player ${slot + 1} joined${hostId === id ? " (host)" : ""} - ${clients.size}/${MAX_PLAYERS}`);
 
   ws.on("message", (data) => {
@@ -137,8 +178,29 @@ wss.on("connection", (ws) => {
       return;
     }
     msg.from = id;
+
+    if (msg.t === "lobby") {
+      const client = clients.get(id);
+      if (typeof msg.hero === "string") client.hero = msg.hero.slice(0, 20);
+      if (typeof msg.name === "string") client.name = msg.name.slice(0, 12);
+      client.ready = !!msg.ready;
+      broadcastLobby();
+      return;
+    }
+    if (msg.t === "start") {
+      if (id === hostId && !inGame) {
+        inGame = true;
+        broadcast({ t: "start" });
+        console.log("Game started");
+      }
+      return;
+    }
+
     const out = JSON.stringify(msg);
-    if (msg.to === "host") {
+    if (typeof msg.to === "number") {
+      const target = clients.get(msg.to);
+      if (target) send(target.ws, out);
+    } else if (msg.to === "host") {
       const host = clients.get(hostId);
       if (host && hostId !== id) send(host.ws, out);
     } else {
@@ -147,12 +209,16 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
+    const client = clients.get(id);
     clients.delete(id);
+    if (inGame && client.token) reserved.set(client.token, { slot, until: Date.now() + REJOIN_MS });
     broadcast({ t: "leave", id });
     if (hostId === id) {
       hostId = clients.size ? clients.keys().next().value : null;
       if (hostId !== null) broadcast({ t: "host", id: hostId });
     }
+    purgeReservations();
+    broadcastLobby();
     console.log(`Player ${slot + 1} left - ${clients.size}/${MAX_PLAYERS}`);
   });
 });
@@ -160,9 +226,6 @@ wss.on("connection", (ws) => {
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`\nWCL Knights LAN server running.\n`);
   console.log(`  On this computer:  http://localhost:${PORT}/game.html`);
-  Object.values(os.networkInterfaces())
-    .flat()
-    .filter((net) => net && net.family === "IPv4" && !net.internal)
-    .forEach((net) => console.log(`  On your LAN:       http://${net.address}:${PORT}/game.html`));
+  lanUrls.forEach((url) => console.log(`  On your LAN:       ${url}`));
   console.log(`\nUp to ${MAX_PLAYERS} players. The first to join is the host.\n`);
 });

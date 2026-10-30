@@ -505,3 +505,289 @@ input[type=range]::-webkit-slider-thumb{
 #boss-bar.stunned .boss-bar-track{
   box-shadow: 0 0 10px #ffd27a;
 }
+
+/* Solo / Play with Friends */
+#start-menu .start-options{
+  display: flex;
+  justify-content: center;
+  gap: 60px;
+}
+
+#start-menu .start-option{
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+#start-menu .start-option.last-used,
+#start-menu .start-option:hover{
+  opacity: 1;
+}
+
+/* Co-op: downed message, party wipe, scoreboard */
+#downed-banner{
+  display: none;
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  padding: 8px 18px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ff9a9a;
+  font-family: hollowKnight;
+  font-size: 26px;
+  white-space: nowrap;
+}
+
+#party-fallen{
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  text-align: center;
+  font-family: hollowKnight;
+  padding-top: 22%;
+}
+
+#party-fallen h1{
+  font-size: 54px;
+  margin-bottom: 10px;
+}
+
+#party-fallen p{
+  font-family: sans-serif;
+  color: #bdbdbd;
+}
+
+#scoreboard{
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 25;
+  min-width: 60%;
+  padding: 20px 28px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  text-align: center;
+}
+
+#scoreboard h1{
+  font-family: hollowKnight;
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+#scoreboard table{
+  width: 100%;
+  border-collapse: collapse;
+  font-family: sans-serif;
+  font-size: 16px;
+}
+
+#scoreboard th{
+  color: #9a9a9a;
+  font-weight: normal;
+  padding: 4px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#scoreboard td{
+  padding: 8px 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+#scoreboard td.player{
+  text-align: left;
+  font-weight: bold;
+}
+
+#scoreboard td.title{
+  color: #ffd27a;
+  font-family: hollowKnight;
+  font-size: 18px;
+}
+
+/* Lobby (Play with Friends) */
+#lobby{
+  display: none;
+  font-family: sans-serif;
+}
+
+#lobby .lobby-slots{
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+#lobby .lobby-slot{
+  width: 170px;
+  padding: 6px 8px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  font-size: 13px;
+  color: #8a8a8a;
+}
+
+#lobby .lobby-slot.filled{
+  color: white;
+  border-color: var(--slot-color);
+}
+
+#lobby .lobby-slot .ready{
+  color: #9dff7a;
+  font-weight: bold;
+}
+
+#lobby .lobby-link{
+  font-size: 13px;
+  color: #bdbdbd;
+  margin-bottom: 4px;
+}
+
+#lobby .lobby-actions{
+  display: flex;
+  justify-content: center;
+  gap: 60px;
+}
+
+#start-menu #lobby h1{
+  margin-bottom: 4px;
+}
+
+#lobby .lobby-button.disabled{
+  opacity: 0.3;
+  cursor: default;
+}
+
+#lobby .lobby-hint{
+  font-size: 13px;
+  color: #9a9a9a;
+}
+
+#hero-select.locked .hero-card:not(.selected){
+  opacity: 0.35;
+}
+
+/* Player name on the start menu */
+#start-menu .name-row{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-family: sans-serif;
+  font-size: 14px;
+  color: #bdbdbd;
+}
+
+#start-menu .name-row input{
+  width: 180px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.55);
+  color: white;
+  font-size: 15px;
+  text-align: center;
+  outline: none;
+}
+
+#start-menu .name-row input:focus{
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+#start-menu .name-row input:disabled{
+  opacity: 0.5;
+}
+
+#pad-hint{
+  display: none;
+  font-family: sans-serif;
+  font-size: 13px;
+  color: #9a9a9a;
+}
+
+/* Bench shop */
+#shop{
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 26;
+  width: 460px;
+  padding: 16px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.85);
+  color: white;
+  text-align: center;
+  font-family: sans-serif;
+}
+
+#shop h1{
+  font-family: hollowKnight;
+  font-size: 36px;
+}
+
+#shop .shop-coins{
+  color: #ffd27a;
+  margin-bottom: 10px;
+}
+
+#shop .shop-item{
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  grid-template-areas: "name level price" "desc level price";
+  gap: 0 14px;
+  align-items: center;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+}
+
+#shop .shop-item.selected{
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+#shop .shop-item-name{ grid-area: name; font-weight: bold; }
+#shop .shop-item-desc{ grid-area: desc; font-size: 12px; color: #9a9a9a; }
+#shop .shop-item-level{ grid-area: level; color: #9a9a9a; font-size: 13px; }
+#shop .shop-item-price{ grid-area: price; color: #ffd27a; min-width: 36px; text-align: right; }
+#shop .shop-item.too-expensive .shop-item-price{ color: #a55; }
+#shop .shop-item.maxed{ opacity: 0.45; }
+
+#shop .shop-hint{
+  margin-top: 10px;
+  font-size: 12px;
+  color: #8a8a8a;
+}
+
+#shop .shop-close{
+  margin-top: 8px;
+  cursor: pointer;
+  color: #bdbdbd;
+  text-decoration: underline;
+}
+
+#ui #door-progress{
+  position: absolute;
+  top: 85px;
+  left: 70px;
+  font-family: sans-serif;
+  font-size: 13px;
+  white-space: nowrap;
+  color: #bdbdbd;
+}

@@ -29,6 +29,7 @@ export class HeroSelect {
     this.root = $(root);
     this.selected = loadChoice();
     this.locked = false;
+    this.onChange = () => {};
     this.build();
     this.onKeyDown = this.onKeyDown.bind(this);
     window.addEventListener("keydown", this.onKeyDown);
@@ -67,10 +68,17 @@ export class HeroSelect {
     saveChoice(id);
     this.root.find(".hero-card").removeClass("selected");
     this.root.find(`[data-hero="${id}"]`).addClass("selected");
+    this.onChange(id);
+  }
+
+  // Lobby: lock while "Ready", unlock to change your mind
+  setLocked(locked) {
+    this.locked = locked;
+    this.root.toggleClass("locked", locked);
   }
 
   onKeyDown(e) {
-    if (this.locked) return;
+    if (this.locked || e.target instanceof HTMLInputElement) return;
     const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
     if (!step) return;
     const i = HERO_IDS.indexOf(this.selected);

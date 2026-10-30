@@ -430,7 +430,13 @@ export class Boss extends Enemy {
   }
 
   netState() {
-    return { ...super.netState(), ar: this.armor, mar: this.maxArmor, mhp: this.maxHealth };
+    return {
+      ...super.netState(),
+      ar: this.armor,
+      mar: this.maxArmor,
+      mhp: this.maxHealth,
+      dd: this.death ? 1 : 0,
+    };
   }
 
   applyNetAnim(s) {
@@ -440,10 +446,10 @@ export class Boss extends Enemy {
       this.sprite = getSprite();
       this.config = config;
       if (sound !== undefined) this.game.audio.play(sound, false);
-      if (s.a === Boss.DEATH && !this.death) {
-        this.death = true;
-        this.ghostDie();
-      }
+    }
+    if (s.dd && !this.death) {
+      this.death = true;
+      this.ghostDie();
     }
     this.state = s.a;
     this.armor = s.ar;
@@ -453,6 +459,8 @@ export class Boss extends Enemy {
   }
 
   hit(n = 0) {
+    // Late hits (e.g. still on their way over the network) mustn't re-stun a dead boss
+    if (this.death) return;
     this.decrementHealth(n);
     this.attacked = true;
   }

@@ -19,7 +19,10 @@ import { UI } from "./ui.js";
 import { MyAudio } from "../facade/audio.js";
 import { Blast } from "./blast.js";
 import { SkillEffect } from "./skill.js";
+import { SHOP_ITEMS } from "../shop.js";
 import { DEFAULT_HERO, HEROES, heroOf, heroSprite, preloadHero } from "../heroes.js";
+
+const RUN_STATS_KEY = "wcl-knights-run";
 
 export class Player extends Character {
   move() {}
@@ -268,7 +271,7 @@ export class Player extends Character {
     const w = this.w - this.offsetX;
     const h = this.h - this.offsetY;
 
-    if (this.cheat || this.invicible || this.dead || this.state == "dash")
+    if (this.cheat || this.invicible || this.dead || this.shopping || this.state == "dash")
       return;
 
     for (const enemy of this.game.enemies) {
@@ -295,13 +298,23 @@ export class Player extends Character {
 
   die() {
     this.dead = true;
-    this.canCollide = false;
+    this.deaths += 1;
+    this.saveRunStats();
     this.changeSprite("dead");
     this.clearKey();
     this.canMove = false;
-    this.gravity = false;
     this.vx = 0;
     this.vy = 0;
+
+    // With teammates around you're only downed: you stay put until revived
+    if (this.game.hasPeers()) {
+      this.downed = true;
+      this.game.ui.showDowned(true);
+      return;
+    }
+
+    this.canCollide = false;
+    this.gravity = false;
     setTimeout(() => {
       this.fade = true;
     }, Setting.CHARACTER_FADE_TIMEOUT);
@@ -379,7 +392,7 @@ export class Player extends Character {
   }
 
   checkDeadState() {
-    if (this.state == "dead") {
+    if (this.state == "dead" && !this.downed) {
       const r = Setting.CHARACTER_RANDOM_DEATH;
       const max = r;
       const min = -r;
@@ -551,6 +564,86 @@ export class Player extends Character {
     this.checkDeadState();
     this.checkFade();
     this.checkBlast();
+    this.checkDowned();
+    this.checkRevive();
+  }
+
+  // Kept per tab so a rejoin after a refresh keeps our scoreboard numbers
+  saveRunStats() {
+    try {
+      sessionStorage.setItem(
+        RUN_STATS_KEY,
+        JSON.stringify({
+          deaths: this.deaths,
+          revives: this.revives,
+          coinsSpent: this.coinsSpent,
+          upgrades: this.upgrades,
+        })
+      );
+    } catch {
+      // not kept - fine
+    }
+  }
+
+  // rejoined: restore the numbers from before the refresh, otherwise start fresh
+  loadRunStats(rejoined) {
+    try {
+      const saved = rejoined && JSON.parse(sessionStorage.getItem(RUN_STATS_KEY));
+      this.deaths = saved?.deaths || 0;
+      this.revives = saved?.revives || 0;
+      this.coinsSpent = saved?.coinsSpent || 0;
+      // Re-apply bought upgrades (needs the hero's stats set first)
+      SHOP_ITEMS.forEach((item) => {
+        const level = Math.min(saved?.upgrades?.[item.id] || 0, item.costs.length);
+        for (let i = 0; i < level; i++) item.apply(this);
+        if (level) this.upgrades[item.id] = level;
+      });
+    } catch {
+      this.deaths = 0;
+      this.revives = 0;
+    }
+    this.saveRunStats();
+  }
+
+  // Downed but everyone else left: nobody can revive us, so get back up
+  checkDowned() {
+    if (this.downed && !this.game.hasPeers()) this.game.respawnPlayer();
+  }
+
+  // Hold interact next to a downed teammate to bring them back
+  checkRevive() {
+    this.reviveCandidate = null;
+    if (this.dead || !this.game.hasPeers()) {
+      this.reviveTarget = null;
+      return;
+    }
+    this.reviveCandidate =
+      this.game.net
+        .remotePlayers()
+        .find(
+          (p) =>
+            p.dead &&
+            Math.abs(p.middleXPos() - this.middleXPos()) < Setting.REVIVE_RANGE &&
+            Math.abs(p.middleYPos() - this.middleYPos()) < Setting.REVIVE_RANGE
+        ) || null;
+
+    const holding = Setting.PLAYER_INTERACT.some((key) => this.game.keys[key]);
+    const target = holding ? this.reviveCandidate : null;
+    if (target !== this.reviveTarget) {
+      this.reviveTarget = target;
+      this.reviveProgress = 0;
+    }
+    if (!target) return;
+
+    this.reviveProgress += this.game.delta;
+    if (this.reviveProgress >= Setting.REVIVE_TIME) {
+      this.game.net.send({ t: "revive", to: target.id });
+      target.dead = false; // until their next update, so we don't revive twice
+      this.revives += 1;
+      this.saveRunStats();
+      this.reviveTarget = null;
+      this.reviveProgress = 0;
+    }
   }
 
   jump() {
@@ -639,7 +732,7 @@ export class Player extends Character {
 
   incrementBlastPower() {
     this.blastHitInterval += 1;
-    if (this.blastHitInterval >= Setting.CHARACTER_GET_BLAST) {
+    if (this.blastHitInterval >= this.hitsPerCharge) {
       this.blastPower += 1;
       this.blastHitInterval = 0;
 
@@ -662,6 +755,8 @@ export class Player extends Character {
       al: Math.round(this.getAlpha() * 100) / 100,
       d: this.dead ? 1 : 0,
       hr: this.heroId,
+      dt: this.deaths,
+      rv: this.revives,
     };
   }
 
@@ -670,6 +765,17 @@ export class Player extends Character {
     this.anim = "idle";
     this.heroId = DEFAULT_HERO;
     this.stats = HEROES[DEFAULT_HERO].stats;
+    this.deaths = 0;
+    this.revives = 0;
+    // Shop: coins spent, upgrade levels by item id, and what Soul Catcher changes
+    this.coinsSpent = 0;
+    this.upgrades = {};
+    this.hitsPerCharge = Setting.CHARACTER_GET_BLAST;
+    this.shopping = false;
+    this.downed = false;
+    this.reviveProgress = 0;
+    this.reviveTarget = null;
+    this.reviveCandidate = null;
     this.maxHealthValue = Setting.CHARACTER_MAX_HEALTH;
     this.isKnockback = "";
     this.attackState = 1;

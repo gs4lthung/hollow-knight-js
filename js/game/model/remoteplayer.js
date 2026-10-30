@@ -16,8 +16,36 @@ export function drawPlayerLabel(ctx, player, slot) {
   ctx.fillStyle = PLAYER_COLORS[slot] || "white";
   const x = player.x + player.w / 2;
   const y = player.y - 8;
-  ctx.strokeText(`P${slot + 1}`, x, y);
-  ctx.fillText(`P${slot + 1}`, x, y);
+  const label = player.name || `P${slot + 1}`;
+  const text = player.downed || (player.remote && player.dead) ? `${label} · DOWN` : label;
+  ctx.strokeText(text, x, y);
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// Prompt and progress ring over a downed teammate we're standing next to
+export function drawReviveHint(ctx, target, progress) {
+  const x = target.x + target.w / 2;
+  const y = target.y - 60;
+  ctx.save();
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.6)";
+  ctx.beginPath();
+  ctx.arc(x, y, 22, 0, Math.PI * 2);
+  ctx.stroke();
+  if (progress > 0) {
+    ctx.strokeStyle = "#9dff7a";
+    ctx.beginPath();
+    ctx.arc(x, y, 22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+    ctx.stroke();
+  }
+  ctx.font = "bold 20px sans-serif";
+  ctx.textAlign = "center";
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "black";
+  ctx.fillStyle = "white";
+  ctx.strokeText("Hold E to revive", x, y - 34);
+  ctx.fillText("Hold E to revive", x, y - 34);
   ctx.restore();
 }
 
@@ -67,6 +95,9 @@ export class RemotePlayer extends Character {
     this.alpha = s.al;
     this.dead = !!s.d;
     this.canCollide = !this.dead;
+    this.name = typeof s.n === "string" ? s.n.slice(0, 12) : "";
+    this.deaths = s.dt || 0;
+    this.revives = s.rv || 0;
   }
 
   render() {

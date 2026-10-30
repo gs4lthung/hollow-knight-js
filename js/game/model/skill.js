@@ -6,6 +6,40 @@ import { getDistance } from "../facade/helper.js";
 import { Particle } from "./particle.js";
 import { UI } from "./ui.js";
 
+// Two elements' skills touching make a combo (keys are the hero ids, sorted).
+// Every player sees it, but only one caster deals its damage so it counts once:
+// the tornado's owner for Fire Tornado / Sandstorm, the fireball's for Steam Burst.
+const COMBOS = {
+  "fire+wind": {
+    name: "Fire Tornado",
+    color: "#ff8a1f",
+    apply(fire, wind) {
+      fire.done = true; // the fireball feeds the tornado
+      wind.boost({ damage: 3, hitInterval: 0.25, extraLife: 1.5, filter: "sepia(1) saturate(5) hue-rotate(-25deg)" });
+    },
+  },
+  "fire+water": {
+    name: "Steam Burst",
+    color: "#e8f4ff",
+    apply(fire, water) {
+      fire.done = true;
+      // The steam rises from the water, not from where the fireball happens to be
+      const x = water.x + water.w / 2;
+      const y = water.y + water.h / 2;
+      Particle.BlastParticle(x - 100, y - 60);
+      UI.getInstance().whiteScreen(120, 0.25);
+      if (!fire.visualOnly) fire.burst(x, y, 260, 6);
+    },
+  },
+  "earth+wind": {
+    name: "Sandstorm",
+    color: "#d9b46a",
+    apply(earth, wind) {
+      wind.boost({ damage: 2, scale: 1.4, extraLife: 1, filter: "sepia(1) saturate(2) brightness(0.9)" });
+    },
+  },
+};
+
 // An elemental hero's skill (see the skill settings in heroes.js).
 // visualOnly: a copy of another player's skill - it can still heal *our* knight,
 // but damage is only dealt by the caster's own copy.
@@ -49,6 +83,12 @@ export class SkillEffect extends Character {
     this.age = 0;
     this.lastHit = new Map(); // enemy -> time of last hit
     this.done = false;
+    this.heroId = heroId;
+    this.combined = new Set(); // effects we already made a combo with
+    this.damage = skill.damage;
+    this.hitInterval = skill.hitInterval;
+    this.life = skill.life;
+    this.filter = null;
 
     const audio = MyAudio.getInstance();
     audio.play(MyAudio.PLAYER_BLAST, false);
@@ -77,8 +117,58 @@ export class SkillEffect extends Character {
     this.vx = this.backward ? -this.skill.speed : this.skill.speed;
   }
 
+  // Combo upgrade for a lingering skill (the tornado)
+  boost({ damage, hitInterval, extraLife = 0, scale = 1, filter }) {
+    this.damage = damage;
+    if (hitInterval) this.hitInterval = hitInterval;
+    if (this.life) this.life += extraLife;
+    if (scale !== 1) {
+      const bottom = this.y + this.h;
+      this.x -= (this.w * (scale - 1)) / 2;
+      this.w *= scale;
+      this.h *= scale;
+      this.y = bottom - this.h;
+    }
+    this.filter = filter;
+  }
+
+  // One-off area damage around (x, y)
+  burst(x, y, radius, damage) {
+    this.game.enemies.forEach((enemy) => {
+      if (enemy.isDead()) return;
+      if (getDistance(enemy.middleXPos(), enemy.middleYPos(), x, y) > radius) return;
+      Particle.HitParticle(enemy.middleXPos(), enemy.middleYPos());
+      this.game.damageEnemy(enemy, damage);
+    });
+    this.game.audio.play(MyAudio.HIT, false);
+  }
+
+  checkCombos() {
+    this.game.blasts.forEach((other) => {
+      if (!(other instanceof SkillEffect) || other === this || other.heroId === this.heroId) return;
+      if (this.done || other.done || this.combined.has(other)) return;
+      const key = [this.heroId, other.heroId].sort().join("+");
+      const combo = COMBOS[key];
+      if (!combo || !other.isCollideEffect(this)) return;
+      this.combined.add(other);
+      other.combined.add(this);
+      const [first, second] = this.heroId < other.heroId ? [this, other] : [other, this];
+      combo.apply(first, second);
+      this.game.floatText(combo.name + "!", (this.x + other.x + other.w) / 2, Math.min(this.y, other.y) - 20, combo.color);
+    });
+  }
+
+  isCollideEffect(other) {
+    return (
+      this.x < other.x + other.w &&
+      other.x < this.x + this.w &&
+      this.y < other.y + other.h &&
+      other.y < this.y + this.h
+    );
+  }
+
   hitEnemies() {
-    const interval = this.skill.hitInterval;
+    const interval = this.hitInterval;
     this.game.enemies.forEach((enemy) => {
       if (enemy.isDead() || !enemy.isCollideBlock(this.x, this.y, this.w, this.h)) return;
       const last = this.lastHit.get(enemy);
@@ -87,19 +177,30 @@ export class SkillEffect extends Character {
       this.lastHit.set(enemy, this.age);
       this.game.audio.play(MyAudio.HIT, false);
       Particle.HitParticle(enemy.middleXPos(), enemy.middleYPos());
-      this.game.damageEnemy(enemy, this.skill.damage);
+      this.game.damageEnemy(enemy, this.damage);
     });
   }
 
   parentMethod() {
     this.age += this.game.delta;
     this.move();
+    this.checkCombos();
     if (!this.visualOnly) this.hitEnemies();
 
     const finished = this.skill.loop
-      ? this.age >= this.skill.life
+      ? this.age >= this.life
       : this.spriteIdx >= SKILL_CONF.max - 1 && this.finishState;
     if (finished) this.done = true;
+  }
+
+  render() {
+    if (!this.filter) return super.render();
+    // Combo tint (fire tornado / sandstorm)
+    const ctx = this.game.ctx;
+    ctx.save();
+    ctx.filter = this.filter;
+    super.render();
+    ctx.restore();
   }
 
   // Called by the game's blast list: true removes the effect
