@@ -55,6 +55,8 @@ export class Boss extends Enemy {
     this.armor = Setting.BOSS_ARMOR;
     this.state = Boss.IDLE;
     this.health = Setting.BOSS_HEALTH;
+    this.maxHealth = Setting.BOSS_HEALTH;
+    this.maxArmor = Setting.BOSS_ARMOR;
     this.isStrike = true;
     this.jumping = false;
   }
@@ -428,7 +430,7 @@ export class Boss extends Enemy {
   }
 
   netState() {
-    return { ...super.netState(), ar: this.armor, mar: this.maxArmor };
+    return { ...super.netState(), ar: this.armor, mar: this.maxArmor, mhp: this.maxHealth };
   }
 
   applyNetAnim(s) {
@@ -446,6 +448,7 @@ export class Boss extends Enemy {
     this.state = s.a;
     this.armor = s.ar;
     this.maxArmor = s.mar;
+    this.maxHealth = s.mhp;
     this.checkOffset();
   }
 

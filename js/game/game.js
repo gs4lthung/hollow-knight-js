@@ -119,6 +119,28 @@ export class GAME {
     return !this.isHost();
   }
 
+  // Only touches the DOM when a value actually changes
+  updateBossBar() {
+    const boss = this.boss;
+    const show = !!(this.bossFight && boss && !boss.death);
+    if (show !== this.bossBarShown) {
+      this.bossBarShown = show;
+      $("#boss-bar").stop(true, true)[show ? "fadeIn" : "fadeOut"](500);
+    }
+    if (!show) return;
+
+    const stunned = boss.state == Boss.STUN;
+    const health = Math.max(0, boss.health) / boss.maxHealth;
+    const armor = stunned ? 0 : Math.max(0, boss.armor) / boss.maxArmor;
+    const key = `${health.toFixed(3)}|${armor.toFixed(3)}|${stunned}`;
+    if (key === this.bossBarKey) return;
+    this.bossBarKey = key;
+
+    $("#boss-bar .boss-bar-fill").css("width", `${health * 100}%`);
+    $("#boss-bar .boss-bar-armor").css("width", `${armor * 100}%`);
+    $("#boss-bar").toggleClass("stunned", stunned);
+  }
+
   playerCount() {
     return this.isNetworked() ? 1 + this.net.players.size : 1;
   }
@@ -428,7 +450,7 @@ export class GAME {
       Setting.BOSS_WIDTH,
       Setting.BOSS_HEIGHT
     );
-    boss.health = Math.ceil(Setting.BOSS_HEALTH * this.difficulty());
+    boss.health = boss.maxHealth = Math.ceil(Setting.BOSS_HEALTH * this.difficulty());
     boss.armor = boss.maxArmor = Math.ceil(Setting.BOSS_ARMOR * this.difficulty());
     this.enemies.push(boss);
     this.boss = boss;
@@ -586,6 +608,7 @@ export class GAME {
     if (!this.pause || this.hasPeers()) {
       this.tickTimers(this.delta);
       this.checkCredit();
+      this.updateBossBar();
       this.updateCamera();
       if (this.useCamera) this.camera.begin();
       this.cheat.checkKeys();
