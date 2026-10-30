@@ -140,6 +140,10 @@ export class GAME {
     return Setting.MAX_ALIVE_ENEMIES + Setting.COOP_ENEMIES_PER_PLAYER * this.extraPlayers();
   }
 
+  spawnGroups() {
+    return this.playerCount() >= Setting.COOP_DOUBLE_SPAWN_PLAYERS ? 2 : 1;
+  }
+
   enemySpawnInterval() {
     const rate = 1 + Setting.COOP_SPAWN_RATE_PER_PLAYER * this.extraPlayers();
     return Setting.ENEMY_SPAWN_TIME / 1000 / rate;

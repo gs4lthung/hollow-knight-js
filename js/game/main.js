@@ -77,8 +77,12 @@ function start() {
   if (game.isHost()) game.spawnEnemy();
   const scheduleSpawn = () => {
     game.after(game.enemySpawnInterval(), () => {
-      if (game.isHost() && !game.bossFight && game.aliveEnemy() < game.maxAliveEnemies()) {
-        game.spawnEnemy();
+      for (let group = 0; group < game.spawnGroups(); group++) {
+        game.after(group * Setting.SPAWN_GROUP_GAP, () => {
+          if (game.isHost() && !game.bossFight && game.aliveEnemy() < game.maxAliveEnemies()) {
+            game.spawnEnemy();
+          }
+        });
       }
       scheduleSpawn();
     });

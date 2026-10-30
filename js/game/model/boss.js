@@ -427,6 +427,10 @@ export class Boss extends Enemy {
     return this.state;
   }
 
+  netState() {
+    return { ...super.netState(), ar: this.armor, mar: this.maxArmor };
+  }
+
   applyNetAnim(s) {
     const anim = Boss.netAnims()[s.a];
     if (anim && s.a !== this.state) {
@@ -440,6 +444,8 @@ export class Boss extends Enemy {
       }
     }
     this.state = s.a;
+    this.armor = s.ar;
+    this.maxArmor = s.mar;
     this.checkOffset();
   }
 

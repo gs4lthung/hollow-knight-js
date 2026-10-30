@@ -97,6 +97,8 @@ export class Setting {
   static MAX_ALIVE_ENEMIES = 10;
   static COOP_ENEMIES_PER_PLAYER = 4; // max alive enemies 10 / 14 / 18 / 22
   static COOP_SPAWN_RATE_PER_PLAYER = 0.3; // spawns x1.3 / x1.6 / x1.9 as often
+  static COOP_DOUBLE_SPAWN_PLAYERS = 3; // from 3 players each spawn brings 2 groups
+  static SPAWN_GROUP_GAP = 0.8; // seconds between the groups so they don't stack
   static COOP_METEORS_PER_PLAYER = 1; // boss slam meteors 3 / 4 / 5 / 6
   static COOP_CAMERA_ZOOM = 1.25; // base view 25% wider with teammates
   static CAMERA_TEAMMATE_MARGIN = 400; // extra space kept around far teammates

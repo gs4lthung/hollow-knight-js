@@ -418,6 +418,7 @@ export class Character {
       c: this.canCollide ? 1 : 0,
       a: this.netAnim(),
       v: Math.round((this.invert || 0) * 100) / 100,
+      hp: this.health, // kept so a promoted host continues with the right health
     };
   }
 
@@ -438,6 +439,7 @@ export class Character {
     this.spriteIdx = s.i;
     this.canCollide = !!s.c;
     this.invert = s.v;
+    this.health = s.hp;
     this.applyNetAnim(s);
   }
 
