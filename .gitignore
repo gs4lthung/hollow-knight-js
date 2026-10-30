@@ -5,3 +5,9 @@ js/anijs-master
 
 mixue.png
 .DS_Store
+node_modules/
+
+# Source/design files (kept locally, not shipped)
+*.psd
+*.docx
+__pycache__/

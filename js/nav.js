@@ -11,11 +11,6 @@ const nav = `    <nav class="absolute w-full">
         HOW TO PLAY
       </div>  
     </div>
-    <div class="menu center">
-      <a href="auth.html">
-        LOGIN
-      </a>  
-    </div>
   </div>
   <a href="game.html" class="play cursor-pointer center">
     <span>PLAY FOR FREE</span>

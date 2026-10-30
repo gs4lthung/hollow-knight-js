@@ -18,6 +18,8 @@ import { Particle } from "./particle.js";
 import { UI } from "./ui.js";
 import { MyAudio } from "../facade/audio.js";
 import { Blast } from "./blast.js";
+import { SkillEffect } from "./skill.js";
+import { DEFAULT_HERO, HEROES, heroOf, heroSprite, preloadHero } from "../heroes.js";
 
 export class Player extends Character {
   move() {}
@@ -43,7 +45,7 @@ export class Player extends Character {
       radgrad.addColorStop(0, "rgba(255,255,255,0.45)");
       radgrad.addColorStop(0.2, "rgba(255,255,255,0.25)");
       radgrad.addColorStop(0.5, "rgba(255,255,255,0.15)");
-      radgrad.addColorStop(1, "rgba(160,230,255,0)");
+      radgrad.addColorStop(1, `rgba(${heroOf(this.heroId).glow},0)`);
 
       game.ctx.fillStyle = radgrad;
       game.ctx.fillRect(0, 0, game.width, game.height);
@@ -57,7 +59,7 @@ export class Player extends Character {
   }
 
   maxHealth() {
-    this.health = Setting.CHARACTER_MAX_HEALTH;
+    this.health = this.maxHealthValue;
   }
 
   changeSprite(state) {
@@ -81,25 +83,29 @@ export class Player extends Character {
       case "dash":
         this.game.audio.play(MyAudio.PLAYER_DASH, false);
         this.spriteIdx = 0;
+        this.anim = "dash";
         this.config = PLAYER_CONF.dash;
-        this.sprite = GET_PLAYER_DASH_SPRITE();
+        this.sprite = heroSprite(this.heroId, "dash");
         break;
       case "force_idle":
       case "idle":
+        this.anim = "idle";
         this.config = PLAYER_CONF.idle;
-        this.sprite = GET_PLAYER_IDLE_SPRITE();
+        this.sprite = heroSprite(this.heroId, "idle");
         break;
       case "walk":
         if (this.state == state) {
           return;
         }
+        this.anim = "walk";
         this.config = PLAYER_CONF.walk;
-        this.sprite = GET_PLAYER_WALK_SPRITE();
+        this.sprite = heroSprite(this.heroId, "walk");
         break;
       case "attack":
         this.game.audio.play(MyAudio.PLAYER_ATTACK, false);
         this.spriteIdx = 0;
-        this.sprite = GET_PLAYER_ATTACK_SPRITE(this.attackState);
+        this.anim = "attack" + this.attackState;
+        this.sprite = heroSprite(this.heroId, this.anim);
         if (this.attackState == 1) {
           this.config = PLAYER_CONF.attack;
         } else {
@@ -109,18 +115,21 @@ export class Player extends Character {
         break;
       case "blast":
         this.spriteIdx = 0;
+        this.anim = "blast";
         this.config = PLAYER_CONF.blast_movement;
-        this.sprite = GET_PLAYER_BLAST_MOVEMENT();
+        this.sprite = heroSprite(this.heroId, "blast");
         break;
       case "jump":
         this.spriteIdx = 0;
+        this.anim = "jump";
         this.config = PLAYER_CONF.jump;
-        this.sprite = GET_PLAYER_JUMP_SPRITE();
+        this.sprite = heroSprite(this.heroId, "jump");
         break;
       case "dead":
         this.spriteIdx = 0;
+        this.anim = "dead";
         this.config = PLAYER_CONF.dead;
-        this.sprite = GET_PLAYER_DEAD();
+        this.sprite = heroSprite(this.heroId, "dead");
         break;
     }
     this.finishState = false;
@@ -163,6 +172,15 @@ export class Player extends Character {
       this.backward,
       this.playerSplashAttack(x, y, w, h)
     );
+    this.game.net?.sendEffect({
+      k: "slash",
+      x: Math.round(x),
+      y: Math.round(y),
+      w,
+      h,
+      s: this.attackState,
+      b: this.backward ? 1 : 0,
+    });
 
     this.canAttack = false;
   }
@@ -216,7 +234,8 @@ export class Player extends Character {
 
         // Jumping State
         this.spriteIdx = PLAYER_CONF.jump.max - 4;
-        this.sprite = GET_PLAYER_JUMP_SPRITE();
+        this.anim = "jump";
+        this.sprite = heroSprite(this.heroId, "jump");
         // this.state = "jump";
         // this.state = "";
       } else {
@@ -238,7 +257,7 @@ export class Player extends Character {
           Particle.HitParticle(x + w, y + w / 2);
           this.incrementBlastPower();
         }
-        enemy.hit();
+        this.game.damageEnemy(enemy);
       }
     });
   }
@@ -252,20 +271,26 @@ export class Player extends Character {
     if (this.cheat || this.invicible || this.dead || this.state == "dash")
       return;
 
-    this.game.enemies.forEach((enemy) => {
+    for (const enemy of this.game.enemies) {
       if (enemy.isCollideBlock(x, y, w, h) && !enemy.dead) {
         // Collide With Enemy!
         Particle.PlayerHit(this.x, this.y, this.backward);
-        this.game.pauseGame(false, false);
         this.game.audio.play(MyAudio.PLAYER_HIT, false);
         this.clearKey();
         this.hit();
-        setTimeout(() => {
+        if (this.game.hasPeers()) {
+          // Can't freeze the shared world for a hit-stop with other players in it
           this.invicible = true;
-          this.game.resumeGame();
-        }, 500);
+        } else {
+          this.game.pauseGame(false, false);
+          setTimeout(() => {
+            this.invicible = true;
+            this.game.resumeGame();
+          }, 500);
+        }
+        return;
       }
-    });
+    }
   }
 
   die() {
@@ -281,7 +306,11 @@ export class Player extends Character {
       this.fade = true;
     }, Setting.CHARACTER_FADE_TIMEOUT);
     setTimeout(() => {
-      this.game.ui.deadScreen();
+      // In multiplayer you respawn instead of reloading the page
+      const respawn = this.game.isNetworked()
+        ? () => this.game.respawnPlayer()
+        : null;
+      this.game.ui.deadScreen(respawn);
     }, Setting.CHARACTER_DEATH_BLACK_SCREEN_TIMEOUT);
   }
 
@@ -297,10 +326,50 @@ export class Player extends Character {
     }
   }
   spawnBlast() {
+    if (this.heroId !== DEFAULT_HERO) {
+      this.castSkill();
+      return;
+    }
     Particle.BlastParticle(this.x, this.y);
     const blast = new Blast(this.x, this.y + this.h / 2, this.backward);
     this.game.blasts.push(blast);
+    this.game.net?.sendEffect({
+      k: "blast",
+      px: Math.round(this.x),
+      py: Math.round(this.y),
+      x: Math.round(this.x),
+      y: Math.round(this.y + this.h / 2),
+      b: this.backward ? 1 : 0,
+    });
     this.spawnedBlast = true;
+  }
+
+  // Elemental heroes replace the soul blast with their own skill
+  castSkill() {
+    const effect = SkillEffect.Cast(this.heroId, this);
+    this.game.net?.sendEffect({
+      k: "skill",
+      hr: this.heroId,
+      x: Math.round(effect.x),
+      y: Math.round(effect.y),
+      b: this.backward ? 1 : 0,
+    });
+    this.spawnedBlast = true;
+  }
+
+  setHero(id) {
+    const hero = heroOf(id);
+    this.heroId = HEROES[id] ? id : DEFAULT_HERO;
+    this.stats = hero.stats;
+    this.speedX = Setting.CHARACTER_SPEED * hero.stats.speed;
+    this.maxSpeed = Setting.CHARACTER_MAX_SPEED * hero.stats.speed;
+    this.maxHealthValue = hero.stats.maxHealth;
+    this.health = this.maxHealthValue;
+    this.splashWidth = 150 * hero.stats.range;
+    this.splashHeight = 150 * hero.stats.range;
+    this.attackSpeed = 0.4 / hero.stats.attackSpeed;
+    preloadHero(this.heroId);
+    this.game.ui.setMaxHealth(this.maxHealthValue);
   }
 
   checkFade() {
@@ -488,7 +557,7 @@ export class Player extends Character {
     if (this.canMove && this.canJump() && this.state != "dash") {
       this.game.audio.play(MyAudio.PLAYER_JUMP, false);
       this.jumping = true;
-      this.vy -= Setting.CHARACTER_JUMP_FORCE;
+      this.vy -= Setting.CHARACTER_JUMP_FORCE * this.stats.jump;
       this.changeSprite("jump");
     }
   }
@@ -524,14 +593,15 @@ export class Player extends Character {
       this.canDash = false;
       Particle.DashParticle(this.x, this.y, this.backward);
       this.saveScale();
-      setTimeout(() => {
+      this.game.after(Setting.CHARACTER_DASH_TIME / 1000, () => {
         this.restoreDefaultScale();
         this.state = "";
         this.changeSprite("idle");
-        setTimeout(() => {
+        const cooldown = (Setting.CHARACTER_DASH_TIMEOUT / 1000) * this.stats.dashCooldown;
+        this.game.after(cooldown, () => {
           this.canDash = true;
-        }, Setting.CHARACTER_DASH_TIMEOUT);
-      }, Setting.CHARACTER_DASH_TIME);
+        });
+      });
     }
   }
 
@@ -579,8 +649,28 @@ export class Player extends Character {
     }
   }
 
+  netPlayerState() {
+    return {
+      t: "p",
+      x: Math.round(this.x),
+      y: Math.round(this.y),
+      w: Math.round(this.w),
+      h: Math.round(this.h),
+      b: this.backward ? 1 : 0,
+      i: this.spriteIdx,
+      a: this.anim,
+      al: Math.round(this.getAlpha() * 100) / 100,
+      d: this.dead ? 1 : 0,
+      hr: this.heroId,
+    };
+  }
+
   constructor(x, y, w, h, sprite, maxSprite) {
     super(x, y, w, h, sprite, maxSprite);
+    this.anim = "idle";
+    this.heroId = DEFAULT_HERO;
+    this.stats = HEROES[DEFAULT_HERO].stats;
+    this.maxHealthValue = Setting.CHARACTER_MAX_HEALTH;
     this.isKnockback = "";
     this.attackState = 1;
     this.cheat = false;

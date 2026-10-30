@@ -81,6 +81,18 @@ body {
   right:5px;
 }
 
+#net-status{
+  display: none;
+  font-family: sans-serif;
+  font-weight: bold;
+  z-index: 10;
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-shadow: 0 0 4px black;
+}
+
 #ui{
   display: none;
   z-index: 10;
@@ -172,7 +184,7 @@ body {
 
 #ui .health-container{
   letter-spacing: 0px;
-  width: 200px;
+  width: max-content;
   position: absolute;
   top: 10px;
   left: 65px;
@@ -362,3 +374,68 @@ input[type=range]::-webkit-slider-thumb{
 
 
 
+
+
+/* Character select on the start menu */
+#start-menu .wcl-logo{
+  cursor: default;
+  font-size: 64px;
+  white-space: nowrap;
+  margin-bottom: 12px;
+}
+
+#hero-select{
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.hero-card{
+  width: 150px;
+  padding: 8px 6px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  color: #d8d8d8;
+  font-family: sans-serif;
+  font-size: 12px;
+  line-height: 1.35;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.hero-card:hover{
+  transform: translateY(-3px);
+}
+
+.hero-card.selected{
+  border-color: var(--hero-color);
+  box-shadow: 0 0 14px var(--hero-color);
+}
+
+.hero-card img{
+  height: 84px;
+  display: block;
+  margin: 0 auto 4px;
+}
+
+.hero-card .hero-name{
+  font-family: hollowKnight;
+  font-size: 20px;
+}
+
+.hero-card .hero-stats{
+  margin: 4px 0;
+  color: #bdbdbd;
+}
+
+.hero-card .hero-skill{
+  font-weight: bold;
+  color: white;
+}
+
+.hero-card .hero-skill-desc{
+  color: #9a9a9a;
+  font-size: 11px;
+}

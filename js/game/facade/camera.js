@@ -66,12 +66,18 @@ export default class Camera {
 
   moveTo(x, y) {
     const game = GAME.getInstance();
-    const maxLeft = game.maxLeftX;
-    const maxRight = game.maxRightX;
-    const maxTop = game.maxTop;
+    // Keep the view inside the level, also when zoomed out
+    const halfWidth = (this.distance * Math.tan(this.fieldOfView)) / 2;
+    const halfHeight = halfWidth / (this.context.canvas.width / this.context.canvas.height);
+    const maxLeft = Math.max(game.maxLeftX, halfWidth);
+    const maxRight = Math.min(game.maxRightX, game.width - halfWidth);
+    const maxTop = Math.max(game.maxTop, halfHeight);
+    const maxBottom = game.height - halfHeight;
 
     if (y < maxTop) {
       y = maxTop;
+    } else if (y > maxBottom) {
+      y = maxBottom;
     }
 
     if (x <= maxLeft) {

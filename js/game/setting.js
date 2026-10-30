@@ -85,8 +85,22 @@ export class Setting {
   static ENEMY_SPAWN_TIME = 10000; // 10 seconds
   static ENEMY_SPAWN_PER_TIME = 3;
   static ENEMY_DIED_STOP = 200;
+  static ENEMY_CORPSE_TIME = 5; // seconds before a dead enemy is removed
 
   static SHAKE_SIZE = 20;
+
+  // Co-op scaling, applied per extra player (2 players = 1 extra)
+  static CRAWLID_HEALTH = 1;
+  static BOOFLY_HEALTH = 1;
+  static COOP_HEALTH_PER_PLAYER = 0.5; // enemy & boss health x1.5 / x2 / x2.5
+  static COOP_KILLS_PER_PLAYER = 5; // boss door needs 10 / 15 / 20 / 25 kills
+  static MAX_ALIVE_ENEMIES = 10;
+  static COOP_ENEMIES_PER_PLAYER = 4; // max alive enemies 10 / 14 / 18 / 22
+  static COOP_SPAWN_RATE_PER_PLAYER = 0.3; // spawns x1.3 / x1.6 / x1.9 as often
+  static COOP_METEORS_PER_PLAYER = 1; // boss slam meteors 3 / 4 / 5 / 6
+  static COOP_CAMERA_ZOOM = 1.25; // base view 25% wider with teammates
+  static CAMERA_TEAMMATE_MARGIN = 400; // extra space kept around far teammates
+  static ENEMY_HIT_FLASH_DECAY = 5; // how fast the white hit flash fades
 
   static TOTAL_PLATFORM = 10;
   static PLATFORM_HEIGHT = 30;

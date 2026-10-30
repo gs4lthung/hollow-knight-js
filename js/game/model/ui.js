@@ -49,12 +49,18 @@ export class UI {
     $("#fps").html(n);
   }
 
-  deadScreen() {
+  // onRespawn: when given (multiplayer), respawn instead of going back to the menu
+  deadScreen(onRespawn = null) {
     const game = GAME.getInstance();
     $("#wck-screen").fadeIn(Setting.DEATH_SCREEN_TIME);
     $("#death-menu").fadeIn(Setting.DEATH_SCREEN_TIME);
     setTimeout(() => {
-      game.backToMenu();
+      if (onRespawn) {
+        $("#death-menu").stop(true).fadeOut(500);
+        onRespawn();
+      } else {
+        game.backToMenu();
+      }
     }, 5000);
   }
 
@@ -81,6 +87,15 @@ export class UI {
   }
   hideRest() {
     $("#rest").fadeOut(100);
+  }
+
+  // Heroes have different numbers of hearts
+  setMaxHealth(n) {
+    this.totalHealth = n;
+    const hearts = Array.from({ length: n }, () =>
+      $("<img>", { class: "health", src: "assets/game/ui/health.png", alt: "" })
+    );
+    $(".health-container").empty().append(hearts);
   }
 
   changeHealth(n) {

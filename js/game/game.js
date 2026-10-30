@@ -2,6 +2,7 @@ import { MyAudio } from "./facade/audio.js";
 import { Cheat } from "./facade/cheat.js";
 import { Credit } from "./facade/credit.js";
 import { GET_BOSS_BG } from "./facade/file.js";
+import { getDistance } from "./facade/helper.js";
 import { Boofly } from "./model/boofly.js";
 import { Boss } from "./model/boss.js";
 import { BossDoor } from "./model/bossdoor.js";
@@ -74,12 +75,224 @@ export class GAME {
     this.rest = null;
     this.fullscreenFlag = false;
     this.canFullscreen = true;
+
+    // LAN co-op (set in main.js); null/inactive means single player
+    this.net = null;
+    this.nextNetId = 1;
+    this.finished = false;
+
+    // Timers that run on game time, so they stop while the game is paused
+    this.timers = [];
+  }
+
+  after(seconds, callback) {
+    this.timers.push({ remaining: seconds, callback });
+  }
+
+  tickTimers(delta) {
+    const due = [];
+    this.timers = this.timers.filter((timer) => {
+      timer.remaining -= delta;
+      if (timer.remaining <= 0) {
+        due.push(timer.callback);
+        return false;
+      }
+      return true;
+    });
+    due.forEach((callback) => callback());
+  }
+
+  isNetworked() {
+    return !!(this.net && this.net.active);
+  }
+
+  // Other players are actually connected right now
+  hasPeers() {
+    return this.isNetworked() && this.net.players.size > 0;
+  }
+
+  isHost() {
+    return !this.isNetworked() || this.net.isHost;
+  }
+
+  isGuest() {
+    return !this.isHost();
+  }
+
+  playerCount() {
+    return this.isNetworked() ? 1 + this.net.players.size : 1;
+  }
+
+  extraPlayers() {
+    return this.playerCount() - 1;
+  }
+
+  // Multiplier for enemy and boss health
+  difficulty() {
+    return 1 + Setting.COOP_HEALTH_PER_PLAYER * this.extraPlayers();
+  }
+
+  killsForBossDoor() {
+    return Setting.TOTAL_CRAWLID + Setting.COOP_KILLS_PER_PLAYER * this.extraPlayers();
+  }
+
+  maxAliveEnemies() {
+    return Setting.MAX_ALIVE_ENEMIES + Setting.COOP_ENEMIES_PER_PLAYER * this.extraPlayers();
+  }
+
+  enemySpawnInterval() {
+    const rate = 1 + Setting.COOP_SPAWN_RATE_PER_PLAYER * this.extraPlayers();
+    return Setting.ENEMY_SPAWN_TIME / 1000 / rate;
+  }
+
+  // Follow our own knight; with teammates, pull back so they stay in view
+  updateCamera() {
+    const camera = this.camera;
+    const tan = Math.tan(camera.fieldOfView);
+    let target = this.width;
+
+    if (this.hasPeers()) {
+      target *= Setting.COOP_CAMERA_ZOOM;
+      let spreadX = 0;
+      let spreadY = 0;
+      this.net.remotePlayers().forEach((p) => {
+        if (p.dead) return;
+        spreadX = Math.max(spreadX, Math.abs(p.x - this.player.x));
+        spreadY = Math.max(spreadY, Math.abs(p.y - this.player.y));
+      });
+      const margin = Setting.CAMERA_TEAMMATE_MARGIN;
+      const aspect = this.canvas.width / this.canvas.height;
+      const neededWidth = Math.max(2 * spreadX + margin, (2 * spreadY + margin) * aspect);
+      target = Math.max(target, neededWidth / tan);
+    }
+
+    // Never wider than the whole level
+    target = Math.min(target, this.width / tan);
+    camera.distance += (target - camera.distance) * Math.min(1, this.delta * 3);
+    camera.moveTo(this.player.x + 100, this.player.y - 50);
+  }
+
+  nearestPlayer(entity) {
+    const players = [this.player];
+    if (this.net) players.push(...this.net.remotePlayers());
+    const alive = players.filter((p) => p && !p.dead);
+    if (alive.length == 0) return this.player;
+
+    const cx = entity.x + entity.w / 2;
+    const cy = entity.y + entity.h / 2;
+    let nearest = alive[0];
+    let nearestDistance = Infinity;
+    alive.forEach((p) => {
+      const d = getDistance(p.x + p.w / 2, p.y + p.h / 2, cx, cy);
+      if (d < nearestDistance) {
+        nearestDistance = d;
+        nearest = p;
+      }
+    });
+    return nearest;
+  }
+
+  // Guests don't own enemies, so their hits are sent to the host
+  damageEnemy(enemy, n = 0) {
+    if (this.isGuest()) {
+      if (enemy.netId != null) {
+        this.net.send({ t: "hit", to: "host", id: enemy.netId, n: n || this.player.damage });
+      }
+      return;
+    }
+    enemy.hit(n);
+  }
+
+  buildSnapshot() {
+    const enemies = this.enemies
+      .filter((e) => e.constructor.NET_KIND && !e.destroy)
+      .map((e) => {
+        if (e.netId == null) e.netId = this.nextNetId++;
+        return e.netState();
+      });
+    return {
+      t: "snap",
+      e: enemies,
+      m: this.ui.money,
+      door: this.bossDoor.open ? 1 : 0,
+      boss: this.bossFight ? 1 : 0,
+    };
+  }
+
+  applySnapshot(s) {
+    if (s.boss && !this.bossFight) this.changeBossScene();
+    if (s.door && !this.bossDoor.open) this.bossDoor.openDoor();
+    if (s.m !== this.ui.money) {
+      this.ui.money = s.m;
+      this.ui.changeMoney(s.m);
+    }
+
+    const existing = new Map(this.enemies.map((e) => [e.netId, e]));
+    const next = [];
+    s.e.forEach((state) => {
+      let enemy = existing.get(state.id);
+      if (enemy) {
+        existing.delete(state.id);
+      } else {
+        enemy = this.net.createMirror(state);
+        if (!enemy) return;
+      }
+      enemy.applyNet(state);
+      next.push(enemy);
+    });
+    existing.forEach((enemy) => enemy.onNetRemove());
+    this.enemies.length = 0;
+    this.enemies.push(...next);
+  }
+
+  // The host left and we were promoted: start simulating the mirrored enemies
+  becomeHost() {
+    this.enemies.forEach((enemy) => {
+      enemy.remote = false;
+      enemy.vx = 0;
+      enemy.vy = 0;
+      if (enemy.netId != null && enemy.netId >= this.nextNetId) {
+        this.nextNetId = enemy.netId + 1;
+      }
+    });
+    if (this.boss && this.boss.state === "") this.boss.changeState(Boss.IDLE);
+  }
+
+  respawnPlayer() {
+    const p = this.player;
+    p.state = "";
+    p.dead = false;
+    p.fade = false;
+    p.alpha = 1;
+    p.canCollide = true;
+    p.canMove = true;
+    p.gravity = true;
+    p.isKnockback = "";
+    p.deadMaxY = Setting.CHARACTER_MAX_DEAD_HEIGHT;
+    p.vx = 0;
+    p.vy = 0;
+    p.restoreDefaultScale();
+    p.x = this.bossFight ? 30 + p.w : this.width / 2 - 250;
+    p.y = -300;
+    p.maxHealth();
+    this.ui.changeHealth(p.health);
+    p.jumping = true;
+    p.changeSprite("jump");
+    p.invicible = true; // brief spawn protection
+  }
+
+  requestBossScene() {
+    if (this.bossFight) return;
+    if (this.isGuest()) {
+      this.net.send({ t: "boss", to: "host" });
+      return;
+    }
+    this.changeBossScene();
+    if (this.isNetworked()) this.net.send({ t: "ev", e: "boss" });
   }
 
   aliveEnemy() {
-    const killed = this.killedCrawlid;
-    const allEnemies = this.enemies.length;
-    return allEnemies - killed;
+    return this.enemies.filter((e) => !e.dead && !e.death).length;
   }
 
   isFullscreen() {
@@ -97,7 +310,11 @@ export class GAME {
         height: "100vh",
         border: "none",
       });
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
     } else {
+      if (document.fullscreenElement) document.exitFullscreen();
       $("#root-nav").show();
       $(".canvas-container").css({
         width: this.mainWidth + "px",
@@ -119,8 +336,8 @@ export class GAME {
 
   checkCrawlidKilled() {
     const ui = UI.getInstance();
-    if (ui.money > Setting.TOTAL_CRAWLID) {
-      const door = BossDoor.GetInstance();
+    const door = BossDoor.GetInstance();
+    if (ui.money >= this.killsForBossDoor() && !door.open) {
       door.openDoor();
     }
   }
@@ -151,6 +368,11 @@ export class GAME {
   }
 
   finishGame() {
+    if (this.finished) return;
+    this.finished = true;
+    if (this.isNetworked() && this.isHost()) {
+      this.net.send({ t: "ev", e: "finish" });
+    }
     this.audio.fadeVideo();
 
     setTimeout(() => {
@@ -194,22 +416,28 @@ export class GAME {
     this.audio.stopAllAudio();
     this.audio.play(MyAudio.BOSS);
 
-    // Create Boss
+    // Create Boss (guests get a mirror of the host's boss from snapshots)
+    if (this.isGuest()) return;
     const boss = new Boss(
       Setting.BOSS_INITIAL_X,
       Setting.BOSS_INITIAL_Y,
       Setting.BOSS_WIDTH,
       Setting.BOSS_HEIGHT
     );
+    boss.health = Math.ceil(Setting.BOSS_HEALTH * this.difficulty());
+    boss.armor = boss.maxArmor = Math.ceil(Setting.BOSS_ARMOR * this.difficulty());
     this.enemies.push(boss);
     this.boss = boss;
   }
 
   shakeScene(t) {
+    if (this.isNetworked() && this.isHost()) {
+      this.net.send({ t: "ev", e: "shake", s: t });
+    }
     this.shake = true;
-    setTimeout(() => {
+    this.after(t, () => {
       this.shake = false;
-    }, t * 1000);
+    });
   }
 
   isCollideObjectGrounded(x, y) {
@@ -259,7 +487,8 @@ export class GAME {
 
   getDelta() {
     const nowTime = new Date();
-    const delta = (nowTime - this.lastTime) / 1000;
+    // Clamp so a stalled or hidden tab doesn't teleport everything on return
+    const delta = Math.min((nowTime - this.lastTime) / 1000, 0.1);
     this.calculateTimeEllapse(delta);
 
     this.delta = delta;
@@ -282,6 +511,7 @@ export class GAME {
         this.ui.showPause();
       }
       if (audio) this.audio.setVolume(0);
+      this.keys = [];
       this.save();
       this.pause = true;
     } else {
@@ -329,6 +559,7 @@ export class GAME {
       // Check Blast Death
       if (blast.checkBound()) {
         this.blasts.splice(i, 1);
+        i--;
       }
     }
   }
@@ -339,6 +570,7 @@ export class GAME {
       enemy.render();
       if (enemy.destroy) {
         this.enemies.splice(i, 1);
+        i--;
       }
     }
   }
@@ -346,9 +578,11 @@ export class GAME {
   render() {
     this.calculateFps();
     this.getDelta();
-    if (!this.pause) {
+    // With other players connected the world keeps running while the menu is open
+    if (!this.pause || this.hasPeers()) {
+      this.tickTimers(this.delta);
       this.checkCredit();
-      this.camera.moveTo(this.player.x + 100, this.player.y - 50);
+      this.updateCamera();
       if (this.useCamera) this.camera.begin();
       this.cheat.checkKeys();
       if (this.useCamera && this.shake) {
@@ -370,6 +604,7 @@ export class GAME {
       this.characters.forEach((character) => {
         character.render();
       });
+      if (this.net) this.net.render();
       this.flies.forEach((fly) => {
         fly.render();
       });
@@ -380,7 +615,7 @@ export class GAME {
       this.renderParticle();
       if (this.useCamera) this.camera.end();
     }
-    /* Rendering the particles. */
+    if (this.net && this.player) this.net.tick(this.delta);
     requestAnimationFrame(this.render.bind(this));
   }
 

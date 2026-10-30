@@ -7,7 +7,8 @@ import { Boss } from './boss.js';
 import { Particle } from './particle.js';
 
 export class Blast extends Character {
-  constructor(x, y, backward) {
+  // visualOnly: a copy of another player's blast that doesn't deal damage
+  constructor(x, y, backward, visualOnly = false) {
     const w = 200;
     const h = 80;
 
@@ -18,6 +19,7 @@ export class Blast extends Character {
     super.backward = backward;
     super.maxSpeed = Setting.CHARACTER_BLAST_MAX_SPEED;
     this.hittedBoss = false;
+    this.visualOnly = visualOnly;
   }
   move() {
     const game = GAME.getInstance();
@@ -43,13 +45,15 @@ export class Blast extends Character {
           game.audio.play(MyAudio.HIT, false);
           Particle.HitParticle(x + w, y + w / 2);
         }
-        enemy.hit(Setting.CHARACTER_BLAST_DAMAGE);
+        game.damageEnemy(enemy, Setting.CHARACTER_BLAST_DAMAGE);
       }
     });
   }
 
   parentMethod() {
     this.move();
-    this.checkCollideEnemy(this.x, this.y, this.w, this.h);
+    if (!this.visualOnly) {
+      this.checkCollideEnemy(this.x, this.y, this.w, this.h);
+    }
   }
 }

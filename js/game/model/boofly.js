@@ -18,6 +18,8 @@ import { UI } from "./ui.js";
 import { MyAudio } from "../facade/audio.js";
 
 export class Boofly extends Enemy {
+  static NET_KIND = "f";
+
   static Generate(backward = false) {
     const game = GAME.getInstance();
 
@@ -65,11 +67,12 @@ export class Boofly extends Enemy {
     super.backward = backward;
     // super.canCollide = false;
     super.maxSpeed = Setting.BOOFLY_MAX_SPEED;
+    this.health = Math.ceil(Setting.BOOFLY_HEALTH * this.game.difficulty());
     this.chasing = false;
   }
 
   checkBackward() {
-    const player = GAME.getInstance().player;
+    const player = GAME.getInstance().nearestPlayer(this);
     if (isInTheLeft(player, this)) {
       this.backward = false;
     } else {
@@ -99,8 +102,17 @@ export class Boofly extends Enemy {
     game.checkCrawlidKilled();
   }
 
-  hit() {
-    if (!this.dead) this.die();
+  hit(n = 0) {
+    this.takeHit(n);
+  }
+
+  applyNetAnim(s) {
+    if (s.d && !this.dead) {
+      this.game.audio.play(MyAudio.VENGE_DIED, false);
+      this.sprite = GET_BOOFLY_DIE();
+      this.config = BOOFLY_CONF.die;
+      this.dead = true;
+    }
   }
 
   moveTo(player) {
@@ -126,8 +138,9 @@ export class Boofly extends Enemy {
     const w = 2 * rad;
     const h = 2 * rad;
     // this.game.debug(x, y, w, h, "yellow");
-    if (this.game.player.isCollideBlock(x, y, w, h)) {
-      this.moveTo(this.game.player);
+    const target = this.game.nearestPlayer(this);
+    if (target.isCollideBlock(x, y, w, h)) {
+      this.moveTo(target);
 
       this.maxSpeed = Setting.BOOFLY_MAX_CHASE_SPEED;
       this.chasing = true;
@@ -138,7 +151,13 @@ export class Boofly extends Enemy {
   }
 
   parentMethod() {
-    if (this.dead) return;
+    this.fadeHitFlash();
+    if (this.dead) {
+      // Remove the corpse after a while so the enemy list doesn't grow forever
+      this.deadTime = (this.deadTime || 0) + this.game.delta;
+      if (this.deadTime > Setting.ENEMY_CORPSE_TIME) this.destroy = true;
+      return;
+    }
 
     this.checkChase();
 

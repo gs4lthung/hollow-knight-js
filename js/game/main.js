@@ -20,6 +20,11 @@ import { Boofly } from "./model/boofly.js";
 import { Rest } from "./model/rest.js";
 import { Particle } from "./model/particle.js";
 import { Meteor } from "./model/meteor.js";
+import { Network } from "./facade/network.js";
+import { HeroSelect } from "./heroselect.js";
+
+const net = Network.getInstance();
+const heroSelect = new HeroSelect("#hero-select");
 
 function start() {
   if (GAME.START) {
@@ -28,6 +33,7 @@ function start() {
 
   GAME.START = true;
   const game = GAME.getInstance();
+  game.net = net;
   game.canvas.width = game.width;
   game.canvas.height = game.height;
 
@@ -40,6 +46,7 @@ function start() {
     PLAYER_CONF.idle
   );
 
+  player.setHero(heroSelect.lock());
   player.jumping = true;
   player.changeSprite("jump");
 
@@ -66,13 +73,17 @@ function start() {
   Ground.GeneratePlatform();
   Character.GenerateFlies();
 
-  // Spawn Enemy
-  game.spawnEnemy();
-  setInterval(() => {
-    if (!game.bossFight && game.aliveEnemy() < 10) {
-      game.spawnEnemy();
-    }
-  }, 10000);
+  // Spawn Enemy (only the host simulates enemies in multiplayer)
+  if (game.isHost()) game.spawnEnemy();
+  const scheduleSpawn = () => {
+    game.after(game.enemySpawnInterval(), () => {
+      if (game.isHost() && !game.bossFight && game.aliveEnemy() < game.maxAliveEnemies()) {
+        game.spawnEnemy();
+      }
+      scheduleSpawn();
+    });
+  };
+  scheduleSpawn();
 
   // bossDoor.generateDoor();
   // bossDoor.generateBackground();
@@ -125,7 +136,7 @@ function start() {
   });
 
   window.addEventListener("keydown", (e) => {
-    if (game.canMove) {
+    if (game.canMove && !game.pause) {
       if (Setting.PLAYER_JUMP.includes(e.key)) {
         player.jump();
       }
@@ -150,13 +161,29 @@ function start() {
   game.render();
 }
 
-function startGame() {
+let starting = false;
+
+async function startGame() {
+  if (starting) return;
+  starting = true;
+
   // When Start Remove the Footer
   $("#root-footer").hide();
 
   $("#start-menu").fadeOut();
+  // Fullscreen must be requested straight from the click, before any await
+  if (!GAME.getInstance().isFullscreen()) GAME.getInstance().fullscreen();
+
+  // Wait to learn whether we're the host before building the world
+  await net.ready;
   start();
 }
+
+// Keep the layout in sync when the browser leaves fullscreen on its own (e.g. Esc)
+document.addEventListener("fullscreenchange", () => {
+  const game = GAME.getInstance();
+  if (!document.fullscreenElement && game.isFullscreen()) game.fullscreen();
+});
 
 // startGame();
 

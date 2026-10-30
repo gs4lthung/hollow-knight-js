@@ -93,10 +93,10 @@ export class Character {
     // Check if is invicible set 100 / 60 second to set to uninvicible
     if (this.invicible && !this.tempInvicible) {
       this.tempInvicible = true;
-      setTimeout(() => {
+      this.game.after(Setting.CHARACTER_INVICIBLE_TIME / 1000, () => {
         this.tempInvicible = false;
         this.invicible = false;
-      }, Setting.CHARACTER_INVICIBLE_TIME);
+      });
     }
   }
 
@@ -314,7 +314,7 @@ export class Character {
   lookAtPlayer() {
     let lastBackward = this.backward;
     const game = GAME.getInstance();
-    if (isInTheLeft(game.player, this)) {
+    if (isInTheLeft(game.nearestPlayer(this), this)) {
       this.backward = true;
     } else {
       this.backward = false;
@@ -363,12 +363,11 @@ export class Character {
   isCollideObject() {
     if (this.canCollide) {
       let flag = false;
+      // Probe the edge we're moving towards (right edge when moving right)
+      const step = this.vx * this.game.delta;
+      const edgeX = this.vx > 0 ? this.x + this.w + step : this.x + step;
       this.game.objects.forEach((obj) => {
-        const inc = !this.backward
-          ? this.vx * this.game.delta
-          : this.vx * this.game.delta;
-
-        if (obj.isCollide(this.x + inc, this.y + this.h / 2)) {
+        if (obj.isCollide(edgeX, this.y + this.h / 2)) {
           flag = true;
         }
       });
@@ -404,8 +403,68 @@ export class Character {
     this.game.ctx.restore();
   }
 
+  // Network sync: the host sends netState(), guests mirror it with applyNet()
+  netState() {
+    return {
+      id: this.netId,
+      k: this.constructor.NET_KIND,
+      x: Math.round(this.x),
+      y: Math.round(this.y),
+      w: Math.round(this.w),
+      h: Math.round(this.h),
+      b: this.backward ? 1 : 0,
+      i: this.spriteIdx,
+      d: this.dead ? 1 : 0,
+      c: this.canCollide ? 1 : 0,
+      a: this.netAnim(),
+      v: Math.round((this.invert || 0) * 100) / 100,
+    };
+  }
+
+  netAnim() {
+    return 0;
+  }
+
+  applyNet(s) {
+    if (this.tx === undefined) {
+      this.x = s.x;
+      this.y = s.y;
+    }
+    this.tx = s.x;
+    this.ty = s.y;
+    this.w = s.w;
+    this.h = s.h;
+    this.backward = !!s.b;
+    this.spriteIdx = s.i;
+    this.canCollide = !!s.c;
+    this.invert = s.v;
+    this.applyNetAnim(s);
+  }
+
+  applyNetAnim(s) {}
+
+  onNetRemove() {}
+
+  // Glide towards the last received position instead of jumping 30x a second
+  netSmooth() {
+    const dx = this.tx - this.x;
+    const dy = this.ty - this.y;
+    if (Math.abs(dx) > 400 || Math.abs(dy) > 400) {
+      this.x = this.tx;
+      this.y = this.ty;
+    } else {
+      const k = Math.min(1, this.game.delta * 15);
+      this.x += dx * k;
+      this.y += dy * k;
+    }
+  }
+
   render() {
-    this.logic();
+    if (this.remote) {
+      this.netSmooth();
+    } else {
+      this.logic();
+    }
     const idx = this.spriteIdx % this.config.max;
 
     if (this.sprite[idx] != null) {

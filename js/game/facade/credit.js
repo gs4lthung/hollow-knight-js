@@ -72,9 +72,9 @@ export class Credit {
   }
 
   checkCollide() {
-    if (isDivColliding($("#credit-scene .stop"), $(".credit-end-header"))) {
+    if (this.alreadyCollide) return;
+    if (isDivColliding(this.stopDiv, this.endHeader)) {
       this.alreadyCollide = true;
-      console.log("colliding");
     }
   }
 
@@ -89,7 +89,10 @@ export class Credit {
       this.root.fadeOut(5000);
       $("#black-screen").animate({ opacity: 1 }, 5000);
       setTimeout(() => {
-        $("#after-scene-container").currentTime = 0;
+        // Only loaded now: the video isn't needed until the very end
+        const video = document.getElementById("after-scene");
+        video.currentTime = 0;
+        video.play().catch(() => {});
         $("#after-scene-container").fadeIn(2000);
       }, 5000);
     } else if (!this.alreadyCollide) {

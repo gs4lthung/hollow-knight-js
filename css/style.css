@@ -273,3 +273,15 @@ footer .logos{
   -webkit-backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
+/* Game title, replaces the old logo image */
+.wcl-logo {
+  font-family: hollowKnight;
+  font-size: clamp(48px, 9vw, 110px);
+  font-weight: normal;
+  color: white;
+  letter-spacing: 4px;
+  text-align: center;
+  margin: 0;
+  z-index: 2;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.6), 0 0 40px rgba(160, 230, 255, 0.35);
+}

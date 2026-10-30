@@ -133,7 +133,7 @@ const secondTemplate = `
           <div class="key e used">E</div>
           <div class="key r">R</div>
           <div class="key t">T</div>
-          <div class="key u">Y</div>
+          <div class="key y">Y</div>
           <div class="key u">U</div>
           <div class="key i">I</div>
           <div class="key o">O</div>
@@ -216,7 +216,7 @@ const keyMap = new Map();
 keyMap.set("e", "Interact (Used when go to boss door or rest)");
 keyMap.set("arrowup", "Player Jump");
 keyMap.set("arrowleft", "Player Move Left");
-keyMap.set("arrowleft", "Player Move Right");
+keyMap.set("arrowright", "Player Move Right");
 keyMap.set("space", "Interact (Used when go to boss door or rest)");
 keyMap.set("z", "Player Jump");
 keyMap.set("x", "Player Attack");
@@ -284,6 +284,8 @@ window.addEventListener("keydown", (e) => {
         break;
     }
 
+    // Keys like # or ! aren't valid class selectors and would throw
+    if (!/^\.[\w-]+$/.test(elName)) return;
     const el = $(elName);
 
     let className = "active";

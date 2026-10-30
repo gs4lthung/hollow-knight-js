@@ -11,6 +11,8 @@ import { UI } from "./ui.js";
 import { MyAudio } from "../facade/audio.js";
 
 export class Crawlid extends Enemy {
+  static NET_KIND = "c";
+
   static GenerateCrawlid(x, backward = false) {
     const game = GAME.getInstance();
     const obj = new this(
@@ -31,10 +33,11 @@ export class Crawlid extends Enemy {
     super.speed = Setting.CRAWLID_SPEED;
     super.backward = backward;
     super.maxSpeed = Setting.CRAWLID_MAX_SPEED;
+    this.health = Math.ceil(Setting.CRAWLID_HEALTH * this.game.difficulty());
   }
 
   checkBackward() {
-    const player = GAME.getInstance().player;
+    const player = GAME.getInstance().nearestPlayer(this);
     if (isInTheLeft(player, this)) {
       this.backward = false;
     } else {
@@ -60,12 +63,26 @@ export class Crawlid extends Enemy {
     game.checkCrawlidKilled();
   }
 
-  hit() {
-    if (!this.dead) this.die();
+  hit(n = 0) {
+    this.takeHit(n);
+  }
+
+  applyNetAnim(s) {
+    if (s.d && !this.dead) {
+      this.game.audio.play(MyAudio.CRAWLID_DIED, false);
+      this.sprite = GET_CRAWLID_DIE();
+      this.dead = true;
+    }
   }
 
   parentMethod() {
-    if (this.dead) return;
+    this.fadeHitFlash();
+    if (this.dead) {
+      // Remove the corpse after a while so the enemy list doesn't grow forever
+      this.deadTime = (this.deadTime || 0) + this.game.delta;
+      if (this.deadTime > Setting.ENEMY_CORPSE_TIME) this.destroy = true;
+      return;
+    }
 
     if (this.backward) {
       // Crawlid Movement

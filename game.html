@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-<base href="https://cdn.jsdelivr.net/gh/TinTinWinata/hollow-knight-js@master/index.html" >
 <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hollow Knight</title>
+    <title>WCL Knights</title>
 
     <!-- Jquery -->
     <script
@@ -71,7 +70,7 @@
             <video
               width="100%"
               src="assets/landing/header.mp4"
-              autoplay
+              preload="none"
               muted
               loop
               id="after-scene"
@@ -87,8 +86,9 @@
             ></video>
             <div class="content">
               <div class="center" style="margin-bottom: 30px">
-                <img width="600px" src="assets/landing/logo_main.png" alt="" />
+                <h1 class="wcl-logo">WCL Knights</h1>
               </div>
+              <div id="hero-select"></div>
               <h1 id="start">Start Game</h1>
             </div>
           </div>
@@ -98,6 +98,9 @@
 
           <!-- Rest Text -->
           <div id="rest">Rest</div>
+
+          <!-- LAN co-op status -->
+          <div id="net-status"></div>
 
           <!-- Fps Counter -->
           <div id="fps">0</div>
@@ -123,7 +126,7 @@
                 Future
               </h2>
               <h2 class="credit-text">JT 22-1</h2>
-              <h1 class="credit-end-header">JeTe Knight</h1>
+              <h1 class="credit-end-header">WCL Knights</h1>
               <p class="credit-end-content" style="margin-top: 10px">
                 Inspired by Hollow Knight
               </p>

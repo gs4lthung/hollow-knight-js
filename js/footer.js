@@ -11,7 +11,7 @@ const template = `
     <img class="logo" src="assets/footer/twitter.svg" alt="" />
   </a>
 </div>
-<div class="text">Hollow Knight Clone Copyright 2022 TinTin Winata</div>
+<div class="text">WCL Knights - based on a Hollow Knight clone by TinTin Winata</div>
 </footer>
 `;
 

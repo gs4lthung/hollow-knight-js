@@ -29,6 +29,22 @@ export class Boss extends Enemy {
   static DEATH = 6;
   static STUN = 7;
 
+  static NET_KIND = "B";
+
+  // State -> sprite, config and sound, used to mirror the host's boss.
+  // Built lazily: file.js may not be initialised yet when this module loads.
+  static netAnims() {
+    return {
+      [Boss.IDLE]: [GET_BOSS_IDLE_SPRITE, BOSS_CONF.idle],
+      [Boss.ATTACK_PREP]: [GET_BOSS_ATTACK_PREP_SPRITE, BOSS_CONF.attack_prep, MyAudio.FALSE_ATTACK],
+      [Boss.ATTACK]: [GET_BOSS_ATTACK_SPRITE, BOSS_CONF.attack],
+      [Boss.JUMP]: [GET_BOSS_JUMP_SPRITE, BOSS_CONF.jump, MyAudio.FALSE_JUMP],
+      [Boss.LAND]: [GET_BOSS_LAND_SPRITE, BOSS_CONF.land, MyAudio.FALSE_LAND],
+      [Boss.DEATH]: [GET_BOSS_DIE_SPRITE, BOSS_CONF.die],
+      [Boss.STUN]: [GET_BOSS_STUN_SPRITE, BOSS_CONF.stun],
+    };
+  }
+
   constructor(x, y, w, h) {
     const sprite = GET_BOSS_IDLE_SPRITE();
     const config = BOSS_CONF.idle;
@@ -199,7 +215,10 @@ export class Boss extends Enemy {
   checkAttack() {
     if (this.state == Boss.ATTACK && this.spriteIdx == 2 && this.isStrike) {
       // Strike
-      for (let i = 0; i < Setting.METEOR_SPAWN_PER_ATTACK; i++) {
+      const meteors =
+        Setting.METEOR_SPAWN_PER_ATTACK +
+        Setting.COOP_METEORS_PER_PLAYER * this.game.extraPlayers();
+      for (let i = 0; i < meteors; i++) {
         Meteor.GenerateMeteor();
       }
       this.game.audio.play(MyAudio.FALSE_STRIKE, false);
@@ -239,11 +258,11 @@ export class Boss extends Enemy {
   attack() {
     this.lookAtPlayer();
     this.changeState(Boss.ATTACK_PREP);
-    setTimeout(() => {
+    this.game.after(Setting.BOSS_ATTACK_PREP_TIME / 1000, () => {
       if (this.state == Boss.ATTACK_PREP) {
         this.changeState(Boss.ATTACK);
       }
-    }, Setting.BOSS_ATTACK_PREP_TIME);
+    });
   }
 
   incrementInvert(n) {
@@ -313,7 +332,7 @@ export class Boss extends Enemy {
   randomState() {
     if (this.state == Boss.IDLE) {
       this.state = "";
-      setTimeout(() => {
+      this.game.after(1, () => {
         if (this.state == "") {
           const attack = Math.random() < 0.5;
           if (attack) {
@@ -322,7 +341,7 @@ export class Boss extends Enemy {
             this.jump();
           }
         }
-      }, 1000);
+      });
     }
   }
 
@@ -389,11 +408,11 @@ export class Boss extends Enemy {
     }
     this.maxSpeed = Setting.BOSS_DEATH_SPEED;
     this.changeState(Boss.STUN);
-    setTimeout(() => {
+    this.game.after(Setting.BOSS_STUN_TIME / 1000, () => {
       if (!this.death) {
-        this.maxSpeed = Setting.BOX_MAX_SPEED;
+        this.maxSpeed = Setting.BOSS_MAX_SPEED;
         this.changeState(Boss.IDLE);
-        this.armor = Setting.BOSS_ARMOR;
+        this.armor = this.maxArmor || Setting.BOSS_ARMOR;
         const offsetX = 550;
         if (this.backward) {
           this.x += offsetX;
@@ -401,7 +420,27 @@ export class Boss extends Enemy {
           this.x += -offsetX;
         }
       }
-    }, Setting.BOSS_STUN_TIME);
+    });
+  }
+
+  netAnim() {
+    return this.state;
+  }
+
+  applyNetAnim(s) {
+    const anim = Boss.netAnims()[s.a];
+    if (anim && s.a !== this.state) {
+      const [getSprite, config, sound] = anim;
+      this.sprite = getSprite();
+      this.config = config;
+      if (sound !== undefined) this.game.audio.play(sound, false);
+      if (s.a === Boss.DEATH && !this.death) {
+        this.death = true;
+        this.ghostDie();
+      }
+    }
+    this.state = s.a;
+    this.checkOffset();
   }
 
   hit(n = 0) {

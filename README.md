@@ -38,49 +38,40 @@ This is a browser-based adaptation of the beloved indie game Hollow Knight. Play
 ## 🚀 Getting Started
 
 ### Prerequisites
-- A modern web browser (Chrome, Firefox, Safari, Edge)
-- A local web server (for asset loading)
+- A modern web browser (Chrome, Firefox, Edge)
+- [Node.js](https://nodejs.org/) 18 or newer
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/hollow-knight-js.git
+   git clone https://github.com/gs4lthung/hollow-knight-js.git
    cd hollow-knight-js
    ```
 
-2. **Start a local server**
-   
-   Using Python:
+2. **Install and start the LAN server**
    ```bash
-   # Python 3
-   python -m http.server 8000
-   
-   # Python 2
-   python -m SimpleHTTPServer 8000
+   npm install
+   npm start
    ```
-   
-   Using Node.js:
-   ```bash
-   npx http-server
-   ```
-   
-   Using PHP:
-   ```bash
-   php -S localhost:8000
-   ```
+   The server prints two kinds of link: `http://localhost:3000/game.html` for this computer, and `http://<your-ip>:3000/game.html` for friends on the same network.
 
-3. **Open in browser**
-   Navigate to `http://localhost:8000` in your web browser
+3. **Play together (LAN co-op, up to 4 players)**
+   - Everyone opens the link in a browser and presses **Start Game**.
+   - The first player to join is the host and runs the enemies; keep the host's game tab in front.
+   - On Windows, allow Node.js through the firewall (private networks) the first time a friend connects.
+   - Opened without the server (any other static file server), the game runs in single-player mode.
+
 
 ## 🎯 How to Play
 
 ### Controls
-- **Arrow Keys / WASD**: Move left/right
-- **Space / W / Up Arrow**: Jump
+- **Left / Right Arrow**: Move
+- **Z / Up Arrow**: Jump
 - **X**: Attack with nail
-- **C**: Dash
-- **Z**: Blast attack
+- **S**: Dash
+- **A**: Blast attack (charged by hitting enemies)
+- **Space / E**: Interact (boss door, rest at bench)
 - **Escape**: Pause game
 - **F**: Toggle fullscreen
 - **Enter**: Start game
@@ -115,11 +106,9 @@ hollow-knight-js/
 │   │   ├── model/        # Game object classes
 │   │   ├── facade/       # Utility modules
 │   │   └── parent/       # Base classes
-│   ├── system/           # System modules
 │   └── landing.js        # Landing page functionality
 ├── index.html            # Landing page
-├── game.html             # Game page
-└── auth.html             # Authentication page
+└── game.html             # Game page
 ```
 
 ## 🛠️ Technical Architecture

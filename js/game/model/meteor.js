@@ -6,6 +6,8 @@ import { Setting } from "../setting.js";
 import { Particle } from "./particle.js";
 
 export class Meteor extends Enemy {
+  static NET_KIND = "m";
+
   constructor(x, y, w, h) {
     const sprite = GET_BARREL_SPRITE();
     const config = BARREL_CONF;
@@ -24,6 +26,11 @@ export class Meteor extends Enemy {
 
   hit() {
     this.destroyObject();
+  }
+
+  onNetRemove() {
+    Particle.BarrelParticle(this.x + this.w / 2, this.y + 90);
+    MyAudio.getInstance().play(MyAudio.BARREL_DEATH, false);
   }
 
   static GenerateMeteor() {

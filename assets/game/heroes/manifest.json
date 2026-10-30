@@ -1,0 +1,365 @@
+{
+  "format": "Same layout as assets/game/hero: <anim>/<anim>_NN.png (NN from 01), transparent RGBA, facing right, feet on the bottom baseline.",
+  "baseline": "Original knight = 1.0 for relative stats (Setting.CHARACTER_SPEED, CHARACTER_JUMP_FORCE); max_health is absolute (original CHARACTER_MAX_HEALTH = 5).",
+  "jump_structure": "jump_01..07 take-off/rise (play once), jump_08 (index max-4) held while airborne, jump_09..11 landing - same as the original.",
+  "blast_note": "blast/ is the casting pose, loaded like GET_PLAYER_BLAST_MOVEMENT (PLAYER_CONF.blast_movement.max = 2).",
+  "regenerate": "\"C:\\Program Files\\Blender Foundation\\Blender 5.2\\blender.exe\" --background --factory-startup --python tools/blender/hero_sprites.py -- --element all",
+  "elements": {
+    "fire": {
+      "folder": "assets/game/heroes/fire",
+      "animations": {
+        "idle": {
+          "frames": 5,
+          "expected": 5,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/fire/idle/idle_NN.png"
+        },
+        "walk": {
+          "frames": 8,
+          "expected": 8,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/fire/walk/walk_NN.png"
+        },
+        "jump": {
+          "frames": 11,
+          "expected": 11,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/fire/jump/jump_NN.png"
+        },
+        "attack": {
+          "frames": 2,
+          "expected": 2,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/fire/attack/attack_NN.png"
+        },
+        "attack2": {
+          "frames": 2,
+          "expected": 2,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/fire/attack2/attack2_NN.png"
+        },
+        "dash": {
+          "frames": 2,
+          "expected": 2,
+          "width": 187,
+          "height": 150,
+          "path": "assets/game/heroes/fire/dash/dash_NN.png"
+        },
+        "dead": {
+          "frames": 4,
+          "expected": 4,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/fire/dead/dead_NN.png"
+        },
+        "blast": {
+          "frames": 2,
+          "expected": 2,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/fire/blast/blast_NN.png"
+        }
+      },
+      "skill": {
+        "path": "assets/game/heroes/fire/skill/skill_NN.png",
+        "frames": 8,
+        "width": 200,
+        "height": 80,
+        "loop": true,
+        "description": "Fireball: a fast horizontal projectile that leaves a flame trail and deals high damage on hit."
+      },
+      "palette": {
+        "cloak": "#a3241a",
+        "trim": "#ff8a1f",
+        "mask": "#f7b54e",
+        "fx": [
+          "#ffd84a",
+          "#ff8a1f",
+          "#e2401c"
+        ]
+      },
+      "stats": {
+        "move_speed": 1.2,
+        "jump_force": 1.05,
+        "max_health": 4,
+        "attack_range": 0.8,
+        "attack_speed": 1.25,
+        "dash_cooldown": 0.8,
+        "body": "short and stocky",
+        "weapon": "short curved ember blade"
+      }
+    },
+    "earth": {
+      "folder": "assets/game/heroes/earth",
+      "animations": {
+        "idle": {
+          "frames": 5,
+          "expected": 5,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/earth/idle/idle_NN.png"
+        },
+        "walk": {
+          "frames": 8,
+          "expected": 8,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/earth/walk/walk_NN.png"
+        },
+        "jump": {
+          "frames": 11,
+          "expected": 11,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/earth/jump/jump_NN.png"
+        },
+        "attack": {
+          "frames": 2,
+          "expected": 2,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/earth/attack/attack_NN.png"
+        },
+        "attack2": {
+          "frames": 2,
+          "expected": 2,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/earth/attack2/attack2_NN.png"
+        },
+        "dash": {
+          "frames": 2,
+          "expected": 2,
+          "width": 187,
+          "height": 150,
+          "path": "assets/game/heroes/earth/dash/dash_NN.png"
+        },
+        "dead": {
+          "frames": 4,
+          "expected": 4,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/earth/dead/dead_NN.png"
+        },
+        "blast": {
+          "frames": 2,
+          "expected": 2,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/earth/blast/blast_NN.png"
+        }
+      },
+      "skill": {
+        "path": "assets/game/heroes/earth/skill/skill_NN.png",
+        "frames": 8,
+        "width": 250,
+        "height": 200,
+        "loop": false,
+        "description": "Rock Spikes: slams the ground; stone spikes erupt in front of the hero, damaging and knocking up enemies in an area."
+      },
+      "palette": {
+        "cloak": "#6e4a2a",
+        "trim": "#5f8a2e",
+        "mask": "#cbc3ad",
+        "fx": [
+          "#a39a88",
+          "#6e4a2a",
+          "#5f8a2e"
+        ]
+      },
+      "stats": {
+        "move_speed": 0.8,
+        "jump_force": 0.85,
+        "max_health": 8,
+        "attack_range": 1.1,
+        "attack_speed": 0.75,
+        "dash_cooldown": 1.3,
+        "body": "wide and heavy, rocky shell",
+        "weapon": "stone club"
+      }
+    },
+    "water": {
+      "folder": "assets/game/heroes/water",
+      "animations": {
+        "idle": {
+          "frames": 5,
+          "expected": 5,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/water/idle/idle_NN.png"
+        },
+        "walk": {
+          "frames": 8,
+          "expected": 8,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/water/walk/walk_NN.png"
+        },
+        "jump": {
+          "frames": 11,
+          "expected": 11,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/water/jump/jump_NN.png"
+        },
+        "attack": {
+          "frames": 2,
+          "expected": 2,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/water/attack/attack_NN.png"
+        },
+        "attack2": {
+          "frames": 2,
+          "expected": 2,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/water/attack2/attack2_NN.png"
+        },
+        "dash": {
+          "frames": 2,
+          "expected": 2,
+          "width": 187,
+          "height": 150,
+          "path": "assets/game/heroes/water/dash/dash_NN.png"
+        },
+        "dead": {
+          "frames": 4,
+          "expected": 4,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/water/dead/dead_NN.png"
+        },
+        "blast": {
+          "frames": 2,
+          "expected": 2,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/water/blast/blast_NN.png"
+        }
+      },
+      "skill": {
+        "path": "assets/game/heroes/water/skill/skill_NN.png",
+        "frames": 8,
+        "width": 250,
+        "height": 150,
+        "loop": false,
+        "description": "Healing Tide: a water wave bursts around the hero, restoring 1-2 health and pushing nearby enemies away."
+      },
+      "palette": {
+        "cloak": "#1f43a0",
+        "trim": "#2bb3a8",
+        "mask": "#e2f3ff",
+        "fx": [
+          "#e9fbff",
+          "#5fd6cc",
+          "#2b6fd6"
+        ]
+      },
+      "stats": {
+        "move_speed": 1.0,
+        "jump_force": 1.0,
+        "max_health": 5,
+        "attack_range": 1.4,
+        "attack_speed": 0.9,
+        "dash_cooldown": 1.0,
+        "body": "tall and slender, long cloak",
+        "weapon": "long spear-nail"
+      }
+    },
+    "wind": {
+      "folder": "assets/game/heroes/wind",
+      "animations": {
+        "idle": {
+          "frames": 5,
+          "expected": 5,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/wind/idle/idle_NN.png"
+        },
+        "walk": {
+          "frames": 8,
+          "expected": 8,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/wind/walk/walk_NN.png"
+        },
+        "jump": {
+          "frames": 11,
+          "expected": 11,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/wind/jump/jump_NN.png"
+        },
+        "attack": {
+          "frames": 2,
+          "expected": 2,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/wind/attack/attack_NN.png"
+        },
+        "attack2": {
+          "frames": 2,
+          "expected": 2,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/wind/attack2/attack2_NN.png"
+        },
+        "dash": {
+          "frames": 2,
+          "expected": 2,
+          "width": 187,
+          "height": 150,
+          "path": "assets/game/heroes/wind/dash/dash_NN.png"
+        },
+        "dead": {
+          "frames": 4,
+          "expected": 4,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/wind/dead/dead_NN.png"
+        },
+        "blast": {
+          "frames": 2,
+          "expected": 2,
+          "width": 125,
+          "height": 150,
+          "path": "assets/game/heroes/wind/blast/blast_NN.png"
+        }
+      },
+      "skill": {
+        "path": "assets/game/heroes/wind/skill/skill_NN.png",
+        "frames": 8,
+        "width": 200,
+        "height": 200,
+        "loop": true,
+        "description": "Gust Tornado: a small tornado travels forward, lifting and repeatedly hitting enemies caught in it; can also boost the hero upward."
+      },
+      "palette": {
+        "cloak": "#bfe9c6",
+        "trim": "#86c99a",
+        "mask": "#f5fff7",
+        "fx": [
+          "#ffffff",
+          "#9fe8c0",
+          "#8fd0ff"
+        ]
+      },
+      "stats": {
+        "move_speed": 1.3,
+        "jump_force": 1.2,
+        "max_health": 3,
+        "attack_range": 0.9,
+        "attack_speed": 1.15,
+        "dash_cooldown": 0.6,
+        "body": "small and light, trailing scarf and leaf antennae",
+        "weapon": "light leaf rapier"
+      }
+    }
+  }
+}
