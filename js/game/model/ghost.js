@@ -3,8 +3,7 @@ import { GAME } from "../game.js";
 import { Character } from "../parent/character.js";
 
 export class Ghost extends Character {
-  static Generate(backward, x, y, w) {
-    const sprite = GET_BOSS_GHOST_SPRITE();
+  static Generate(backward, x, y, w, sprite = GET_BOSS_GHOST_SPRITE()) {
 
     const inc = backward ? 0 : w - 30;
 

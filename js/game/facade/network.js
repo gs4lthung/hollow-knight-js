@@ -4,6 +4,9 @@ import { Boss } from "../model/boss.js";
 import { Blast } from "../model/blast.js";
 import { Crawlid } from "../model/crawlid.js";
 import { Meteor } from "../model/meteor.js";
+import { Mossling } from "../model/mossling.js";
+import { Spore, SporeDrifter } from "../model/sporedrifter.js";
+import { Thorn, Warden } from "../model/warden.js";
 import { Particle } from "../model/particle.js";
 import { SkillEffect } from "../model/skill.js";
 import {
@@ -234,6 +237,12 @@ export class Network {
       case "wipe":
         game.partyWipe();
         break;
+      case "grove-opens":
+        game.ui.showTitle(Setting.AREA2_TRANSITION_DELAY, "The way to the Sunken Grove opens");
+        break;
+      case "area2":
+        game.syncStage("area2");
+        break;
       case "shake":
         if (msg.s === 2) game.audio.play(MyAudio.FALSE_STRIKE, false);
         game.shakeScene(msg.s);
@@ -280,6 +289,22 @@ export class Network {
         break;
       case Meteor.NET_KIND:
         enemy = new Meteor(s.x, s.y, s.w, s.h);
+        break;
+      case Mossling.NET_KIND:
+        enemy = new Mossling(s.x, s.y, s.w, s.h, !!s.b);
+        break;
+      case SporeDrifter.NET_KIND:
+        enemy = new SporeDrifter(s.x, s.y, s.w, s.h);
+        break;
+      case Spore.NET_KIND:
+        enemy = new Spore(s.x, s.y, 0, 0);
+        break;
+      case Thorn.NET_KIND:
+        enemy = new Thorn(s.x + s.w / 2);
+        break;
+      case Warden.NET_KIND:
+        enemy = new Warden(s.x, s.y);
+        GAME.getInstance().boss = enemy;
         break;
       default:
         return null;

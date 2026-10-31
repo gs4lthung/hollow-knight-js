@@ -129,7 +129,9 @@ export class MyAudio {
 
   play(state, loop = true) {
     this.audios[state].currentTime = 0;
-    this.audios[state].play();
+    // play() rejects if the sound is stopped right away (e.g. changing area) or the
+    // browser blocks audio before the first click - neither is worth an error
+    this.audios[state].play().catch(() => {});
     this.audios[state].volume = this.getValueFromRange();
     this.audios[state].loop = loop;
   }

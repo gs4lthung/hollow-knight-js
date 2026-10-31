@@ -104,6 +104,28 @@ export class Setting {
   static CAMERA_TEAMMATE_MARGIN = 400; // extra space kept around far teammates
   static ENEMY_HIT_FLASH_DECAY = 5; // how fast the white hit flash fades
 
+  // Area 2: Sunken Grove
+  static MOSSLING_HEALTH = 2;
+  static MOSSLING_CHARGE_SPEED = 480;
+  static MOSSLING_CHARGE_RANGE = 450; // px: charges when a knight is this close at the same height
+  static MOSSLING_CHARGE_TIME = 1.1; // seconds
+  static MOSSLING_CHARGE_COOLDOWN = 2;
+  static DRIFTER_HEALTH = 2;
+  static DRIFTER_SHOOT_EVERY = 3; // seconds, plus up to 1 s random
+  static SPORE_SPEED = 420;
+  static SPORE_LIFE = 4;
+  static WARDEN_SIZE = 460; // drawn size of the 600x600 frames
+  static WARDEN_HEALTH = 40;
+  static WARDEN_ARMOR = 12;
+  static WARDEN_STUN_TIME = 4;
+  static WARDEN_WALK_SPEED = 260;
+  static WARDEN_LUNGE_SPEED = 750;
+  static WARDEN_LEAP_FORCE = 1350;
+  static WARDEN_SLASH_REACH = 260;
+  static THORN_WARNING_TIME = 0.6; // glowing mark on the ground before a thorn bursts out
+  static AREA2_TITLE_TIME = 3000;
+  static AREA2_TRANSITION_DELAY = 4000; // ms after the False Knight falls
+
   // Co-op revive
   static REVIVE_TIME = 2; // seconds holding interact next to a downed teammate
   static REVIVE_RANGE = 130; // px between the two knights' centres

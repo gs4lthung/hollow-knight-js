@@ -164,7 +164,8 @@ export class UI {
     $("#money-text").text(Math.max(0, n - spent));
     const needed = game.killsForBossDoor ? game.killsForBossDoor() : Setting.TOTAL_CRAWLID;
     const doorOpen = game.bossDoor && game.bossDoor.open;
-    $("#door-progress").text(doorOpen || game.bossFight ? "" : `Door ${Math.min(n, needed)}/${needed}`);
+    const kills = n - (game.areaStartKills || 0); // each area's gate counts its own kills
+    $("#door-progress").text(doorOpen || game.bossFight ? "" : `Door ${Math.min(kills, needed)}/${needed}`);
   }
 
   hideTitle() {

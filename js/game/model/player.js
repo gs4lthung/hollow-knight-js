@@ -275,8 +275,10 @@ export class Player extends Character {
       return;
 
     for (const enemy of this.game.enemies) {
-      if (enemy.isCollideBlock(x, y, w, h) && !enemy.dead) {
+      if (enemy.isCollideBlock(x, y, w, h) && !enemy.dead && !enemy.harmless) {
         // Collide With Enemy!
+        // Projectiles (spores) pop on impact
+        if (enemy.isProjectile) this.game.damageEnemy(enemy, 1);
         Particle.PlayerHit(this.x, this.y, this.backward);
         this.game.audio.play(MyAudio.PLAYER_HIT, false);
         this.clearKey();

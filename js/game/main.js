@@ -26,6 +26,7 @@ import { Lobby } from "./lobby.js";
 import { getPlayerName, setupNameInput } from "./playername.js";
 import { GamepadInput, PAD_BUTTON } from "./gamepad.js";
 import { Shop } from "./shop.js";
+import { preloadArea2 } from "./facade/area2assets.js";
 
 const net = Network.getInstance();
 const heroSelect = new HeroSelect("#hero-select");
@@ -134,6 +135,9 @@ function start() {
 
   // Generate Rest
   Rest.GenerateRest();
+
+  // Load the Sunken Grove's art now so nothing pops in at the transition
+  preloadArea2();
 
   window.addEventListener("keypress", (e) => {
     if (!game.pause) game.cheat.addKeys(e.key);

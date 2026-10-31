@@ -3,7 +3,7 @@
   "baseline": "Original knight = 1.0 for relative stats (Setting.CHARACTER_SPEED, CHARACTER_JUMP_FORCE); max_health is absolute (original CHARACTER_MAX_HEALTH = 5).",
   "jump_structure": "jump_01..07 take-off/rise (play once), jump_08 (index max-4) held while airborne, jump_09..11 landing - same as the original.",
   "blast_note": "blast/ is the casting pose, loaded like GET_PLAYER_BLAST_MOVEMENT (PLAYER_CONF.blast_movement.max = 2).",
-  "regenerate": "\"C:\\Program Files\\Blender Foundation\\Blender 5.2\\blender.exe\" --background --factory-startup --python tools/blender/hero_sprites.py -- --element all",
+  "regenerate": "Open tools/blender/wcl_art.blend, exec hero_lib.py then kit_lib.py and call render_kit for the Kit_<element> scenes (hero_skills.py render_skill for Skill_<element>), then tools/blender/finish_frames.py --mirror --outline=2 (--settle-each, or --ground for jump) and tools/blender/heroes_check.py.",
   "elements": {
     "fire": {
       "folder": "assets/game/heroes/fire",

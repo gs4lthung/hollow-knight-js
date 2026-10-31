@@ -15,6 +15,7 @@ export class Meteor extends Enemy {
     super.speed = Setting.METEOR_SPEED;
     super.gravity = false;
     super.canCollide = true;
+    this.isProjectile = true;
   }
 
   checkOutsideMap() {

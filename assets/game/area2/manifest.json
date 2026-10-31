@@ -1,0 +1,217 @@
+{
+  "format": "<folder>/<anim>/<anim>_NN.png (NN from 01), RGBA; see docs/area2-art-brief.md",
+  "source": "tools/blender/wcl_art.blend (scenes Mossling, SporeDrifter, Spore, Warden, WardenGhost, Thorn, GroveBG, GroveFG, GroveTiles, GroveGate)",
+  "animations": {
+    "enemies/mossling/walk": {
+      "frames": 4,
+      "expected": 4,
+      "width": 125,
+      "height": 90,
+      "facing": "left",
+      "path": "assets/game/area2/enemies/mossling/walk/walk_NN.png"
+    },
+    "enemies/mossling/charge": {
+      "frames": 4,
+      "expected": 4,
+      "width": 125,
+      "height": 90,
+      "facing": "left",
+      "path": "assets/game/area2/enemies/mossling/charge/charge_NN.png"
+    },
+    "enemies/mossling/die": {
+      "frames": 5,
+      "expected": 5,
+      "width": 130,
+      "height": 110,
+      "facing": "left",
+      "path": "assets/game/area2/enemies/mossling/die/die_NN.png"
+    },
+    "enemies/spore_drifter/fly": {
+      "frames": 5,
+      "expected": 5,
+      "width": 116,
+      "height": 136,
+      "facing": "left",
+      "path": "assets/game/area2/enemies/spore_drifter/fly/fly_NN.png"
+    },
+    "enemies/spore_drifter/spit": {
+      "frames": 4,
+      "expected": 4,
+      "width": 116,
+      "height": 136,
+      "facing": "left",
+      "path": "assets/game/area2/enemies/spore_drifter/spit/spit_NN.png"
+    },
+    "enemies/spore_drifter/die": {
+      "frames": 3,
+      "expected": 3,
+      "width": 116,
+      "height": 136,
+      "facing": "left",
+      "path": "assets/game/area2/enemies/spore_drifter/die/die_NN.png"
+    },
+    "enemies/spore/fly": {
+      "frames": 3,
+      "expected": 3,
+      "width": 48,
+      "height": 48,
+      "facing": "any",
+      "path": "assets/game/area2/enemies/spore/fly/fly_NN.png"
+    },
+    "boss/idle": {
+      "frames": 5,
+      "expected": 5,
+      "width": 600,
+      "height": 600,
+      "facing": "right",
+      "path": "assets/game/area2/boss/idle/idle_NN.png"
+    },
+    "boss/walk": {
+      "frames": 6,
+      "expected": 6,
+      "width": 600,
+      "height": 600,
+      "facing": "right",
+      "path": "assets/game/area2/boss/walk/walk_NN.png"
+    },
+    "boss/slash_prep": {
+      "frames": 4,
+      "expected": 4,
+      "width": 600,
+      "height": 600,
+      "facing": "right",
+      "path": "assets/game/area2/boss/slash_prep/slash_prep_NN.png"
+    },
+    "boss/slash": {
+      "frames": 6,
+      "expected": 6,
+      "width": 600,
+      "height": 600,
+      "facing": "right",
+      "path": "assets/game/area2/boss/slash/slash_NN.png"
+    },
+    "boss/leap": {
+      "frames": 6,
+      "expected": 6,
+      "width": 600,
+      "height": 600,
+      "facing": "right",
+      "path": "assets/game/area2/boss/leap/leap_NN.png"
+    },
+    "boss/land": {
+      "frames": 3,
+      "expected": 3,
+      "width": 600,
+      "height": 600,
+      "facing": "right",
+      "path": "assets/game/area2/boss/land/land_NN.png"
+    },
+    "boss/summon": {
+      "frames": 6,
+      "expected": 6,
+      "width": 600,
+      "height": 600,
+      "facing": "right",
+      "path": "assets/game/area2/boss/summon/summon_NN.png"
+    },
+    "boss/stun": {
+      "frames": 10,
+      "expected": 10,
+      "width": 600,
+      "height": 600,
+      "facing": "right",
+      "path": "assets/game/area2/boss/stun/stun_NN.png"
+    },
+    "boss/die": {
+      "frames": 1,
+      "expected": 1,
+      "width": 600,
+      "height": 600,
+      "facing": "right",
+      "path": "assets/game/area2/boss/die/die_NN.png"
+    },
+    "boss/ghost_die": {
+      "frames": 4,
+      "expected": 4,
+      "width": 275,
+      "height": 202,
+      "facing": "right",
+      "path": "assets/game/area2/boss/ghost_die/ghost_die_NN.png"
+    },
+    "boss/thorn": {
+      "frames": 8,
+      "expected": 8,
+      "width": 120,
+      "height": 260,
+      "facing": "right",
+      "path": "assets/game/area2/boss/thorn/thorn_NN.png"
+    }
+  },
+  "level": {
+    "background": {
+      "width": 1339,
+      "height": 789,
+      "path": "assets/game/area2/level/background.png"
+    },
+    "boss_background": {
+      "width": 1339,
+      "height": 789,
+      "path": "assets/game/area2/level/boss_background.png"
+    },
+    "foreground": {
+      "width": 3061,
+      "height": 1042,
+      "path": "assets/game/area2/level/foreground.png"
+    },
+    "floor_1": {
+      "width": 285,
+      "height": 48,
+      "path": "assets/game/area2/level/floor_1.png"
+    },
+    "floor_2": {
+      "width": 233,
+      "height": 41,
+      "path": "assets/game/area2/level/floor_2.png"
+    },
+    "floor_3": {
+      "width": 301,
+      "height": 48,
+      "path": "assets/game/area2/level/floor_3.png"
+    },
+    "floor_4": {
+      "width": 285,
+      "height": 48,
+      "path": "assets/game/area2/level/floor_4.png"
+    },
+    "floor_5": {
+      "width": 288,
+      "height": 44,
+      "path": "assets/game/area2/level/floor_5.png"
+    },
+    "floor_6": {
+      "width": 341,
+      "height": 68,
+      "path": "assets/game/area2/level/floor_6.png"
+    },
+    "platform": {
+      "width": 275,
+      "height": 66,
+      "path": "assets/game/area2/level/platform.png"
+    },
+    "gate_background": {
+      "width": 591,
+      "height": 801,
+      "path": "assets/game/area2/level/gate_background.png"
+    },
+    "gate": {
+      "width": 574,
+      "height": 497,
+      "path": "assets/game/area2/level/gate.png"
+    },
+    "gate_portal": {
+      "width": 574,
+      "height": 497,
+      "path": "assets/game/area2/level/gate_portal.png"
+    }
+  }
+}

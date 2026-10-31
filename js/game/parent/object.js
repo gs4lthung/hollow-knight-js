@@ -1,5 +1,6 @@
-import { checkBlockCollide, checkCollide } from "../facade/helper.js";
+import { checkBlockCollide, checkCollide, isDrawable } from "../facade/helper.js";
 import { GAME } from "../game.js";
+import { PLACEHOLDER_FILTER } from "../facade/area2assets.js";
 
 export class Object {
   static GenerateBlack() {
@@ -115,7 +116,17 @@ export class Object {
   renderWithSprite() {
     if (!this.speed) this.spriteIdx++;
     const idx = this.spriteIdx % this.maxSprite;
-    this.ctx.drawImage(this.sprite[idx], this.x, this.y, this.w, this.h);
+    const image = this.sprite[idx];
+    if (!isDrawable(image)) return;
+    if (this.sprite.placeholder || image.placeholder) {
+      // Area 2 art that doesn't exist yet: tinted stand-in
+      this.ctx.save();
+      this.ctx.filter = PLACEHOLDER_FILTER;
+      this.ctx.drawImage(image, this.x, this.y, this.w, this.h);
+      this.ctx.restore();
+      return;
+    }
+    this.ctx.drawImage(image, this.x, this.y, this.w, this.h);
   }
 
   renderWithColor() {
@@ -127,6 +138,7 @@ export class Object {
   renderBackward() {
     if (!this.speed) this.spriteIdx++;
     const idx = this.spriteIdx % this.maxSprite;
+    if (!isDrawable(this.sprite[idx])) return;
     this.ctx.save();
     this.ctx.translate(this.x + this.w / 2, this.y + this.h / 2);
     this.ctx.scale(-1, 1);

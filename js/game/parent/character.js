@@ -3,6 +3,7 @@ import { FLIES_CONF, GET_FLIES_SPRITE } from "../facade/file.js";
 import {
   checkBlockCollide,
   checkCollide,
+  isDrawable,
   isInTheLeft,
 } from "../facade/helper.js";
 import { Setting } from "../setting.js";
@@ -419,6 +420,7 @@ export class Character {
       a: this.netAnim(),
       v: Math.round((this.invert || 0) * 100) / 100,
       hp: this.health, // kept so a promoted host continues with the right health
+      hm: this.harmless ? 1 : 0, // touching it doesn't hurt (stunned boss, thorn not out yet)
     };
   }
 
@@ -440,6 +442,7 @@ export class Character {
     this.canCollide = !!s.c;
     this.invert = s.v;
     this.health = s.hp;
+    this.harmless = !!s.hm;
     this.applyNetAnim(s);
   }
 
@@ -469,7 +472,7 @@ export class Character {
     }
     const idx = this.spriteIdx % this.config.max;
 
-    if (this.sprite[idx] != null) {
+    if (isDrawable(this.sprite[idx])) {
       if (this.invert) {
       }
 

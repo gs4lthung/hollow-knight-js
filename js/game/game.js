@@ -10,6 +10,22 @@ import { Crawlid } from "./model/crawlid.js";
 import { Particle } from "./model/particle.js";
 import { UI } from "./model/ui.js";
 import { Setting } from "./setting.js";
+import {
+  A2_BACKGROUND,
+  A2_BOSS_BACKGROUND,
+  A2_FLOOR,
+  A2_FOREGROUND,
+  A2_PLATFORM,
+  preloadArea2,
+} from "./facade/area2assets.js";
+import { Ground } from "./model/ground.js";
+import { Mossling } from "./model/mossling.js";
+import { Rest } from "./model/rest.js";
+import { SporeDrifter } from "./model/sporedrifter.js";
+import { Warden } from "./model/warden.js";
+
+// The run: Area 1 -> False Knight -> Sunken Grove -> Grove Warden
+const STAGES = ["area1", "boss1", "area2", "boss2"];
 
 export class GAME {
   static START = false;
@@ -84,6 +100,11 @@ export class GAME {
     // Timers that run on game time, so they stop while the game is paused
     this.timers = [];
 
+    // Which part of the run we're in (see STAGES) and the team kill count when
+    // this area started (each area's gate needs its own kills)
+    this.stage = "area1";
+    this.areaStartKills = 0;
+
     // Floating combat text (combo names)
     this.floatTexts = [];
 
@@ -127,14 +148,14 @@ export class GAME {
 
   // Host side: apply a hit and credit the attacker for kills / boss damage
   applyHit(enemy, n, attackerKey) {
-    const isBoss = enemy instanceof Boss;
+    const isBoss = !!enemy.isBoss;
     const wasDown = enemy.dead || enemy.death;
     const bossBefore = isBoss ? enemy.health + Math.max(0, enemy.armor) : 0;
     enemy.hit(n);
     const stats = this.statsFor(attackerKey);
     if (isBoss) {
       stats.bossDamage += Math.max(0, bossBefore - (enemy.health + Math.max(0, enemy.armor)));
-    } else if (!wasDown && enemy.dead && enemy.constructor.NET_KIND !== "m") {
+    } else if (!wasDown && enemy.dead && !enemy.isProjectile) {
       stats.kills += 1;
     }
   }
@@ -230,13 +251,14 @@ export class GAME {
     }
     if (!show) return;
 
-    const stunned = boss.state == Boss.STUN;
+    const stunned = boss.isStunned();
     const health = Math.max(0, boss.health) / boss.maxHealth;
     const armor = stunned ? 0 : Math.max(0, boss.armor) / boss.maxArmor;
-    const key = `${health.toFixed(3)}|${armor.toFixed(3)}|${stunned}`;
+    const key = `${boss.displayName}|${health.toFixed(3)}|${armor.toFixed(3)}|${stunned}`;
     if (key === this.bossBarKey) return;
     this.bossBarKey = key;
 
+    $("#boss-bar .boss-bar-name").text(boss.displayName);
     $("#boss-bar .boss-bar-fill").css("width", `${health * 100}%`);
     $("#boss-bar .boss-bar-armor").css("width", `${armor * 100}%`);
     $("#boss-bar").toggleClass("stunned", stunned);
@@ -342,14 +364,16 @@ export class GAME {
       e: enemies,
       m: this.ui.money,
       door: this.bossDoor.open ? 1 : 0,
-      boss: this.bossFight ? 1 : 0,
+      stage: this.stage,
+      ak: this.areaStartKills,
       st: this.stats, // so a promoted host keeps the scoreboard
     };
   }
 
   applySnapshot(s) {
     if (s.st) this.stats = s.st;
-    if (s.boss && !this.bossFight) this.changeBossScene();
+    if (s.stage) this.syncStage(s.stage);
+    if (s.ak !== undefined) this.areaStartKills = s.ak;
     if (s.door && !this.bossDoor.open) this.bossDoor.openDoor();
     if (s.m !== this.ui.money) {
       this.ui.money = s.m;
@@ -385,6 +409,8 @@ export class GAME {
       }
     });
     if (this.boss && this.boss.state === "") this.boss.changeState(Boss.IDLE);
+    // The old host left while the False Knight's death was leading into the Grove
+    if (this.stage === "boss1" && this.boss && this.boss.death) this.bossDefeated(this.boss);
   }
 
   respawnPlayer() {
@@ -436,7 +462,7 @@ export class GAME {
   }
 
   aliveEnemy() {
-    return this.enemies.filter((e) => !e.dead && !e.death).length;
+    return this.enemies.filter((e) => !e.dead && !e.death && !e.isProjectile).length;
   }
 
   isFullscreen() {
@@ -473,6 +499,12 @@ export class GAME {
   }
 
   spawnEnemy() {
+    if (this.stage === "area2") {
+      Mossling.Generate(this.width, true);
+      SporeDrifter.Generate();
+      Mossling.Generate(0, false);
+      return;
+    }
     Crawlid.GenerateCrawlid(this.width, true);
     Boofly.Generate();
     Crawlid.GenerateCrawlid(0, false);
@@ -481,7 +513,7 @@ export class GAME {
   checkCrawlidKilled() {
     const ui = UI.getInstance();
     const door = BossDoor.GetInstance();
-    if (ui.money >= this.killsForBossDoor() && !door.open) {
+    if (ui.money - this.areaStartKills >= this.killsForBossDoor() && !door.open) {
       door.openDoor();
     }
   }
@@ -541,8 +573,11 @@ export class GAME {
   }
 
   changeBossScene() {
+    const grove = this.stage === "area2";
+    this.stage = grove ? "boss2" : "boss1";
+
     // Settup Background
-    this.mainBackground.sprite = GET_BOSS_BG();
+    this.mainBackground.sprite = grove ? A2_BOSS_BACKGROUND() : GET_BOSS_BG();
     this.mainBackground.reset();
     this.backgrounds.forEach((bg) => {
       bg.reset();
@@ -563,18 +598,83 @@ export class GAME {
     this.audio.stopAllAudio();
     this.audio.play(MyAudio.BOSS);
 
+    // Hide the door counter during the fight
+    this.ui.changeMoney(this.ui.money);
+
     // Create Boss (guests get a mirror of the host's boss from snapshots)
     if (this.isGuest()) return;
-    const boss = new Boss(
-      Setting.BOSS_INITIAL_X,
-      Setting.BOSS_INITIAL_Y,
-      Setting.BOSS_WIDTH,
-      Setting.BOSS_HEIGHT
-    );
-    boss.health = boss.maxHealth = Math.ceil(Setting.BOSS_HEALTH * this.difficulty());
-    boss.armor = boss.maxArmor = Math.ceil(Setting.BOSS_ARMOR * this.difficulty());
+    let boss;
+    if (grove) {
+      boss = new Warden(this.width - 700, this.height - 200 - Setting.WARDEN_SIZE);
+      boss.health = boss.maxHealth = Math.ceil(Setting.WARDEN_HEALTH * this.difficulty());
+      boss.armor = boss.maxArmor = Math.ceil(Setting.WARDEN_ARMOR * this.difficulty());
+    } else {
+      boss = new Boss(Setting.BOSS_INITIAL_X, Setting.BOSS_INITIAL_Y, Setting.BOSS_WIDTH, Setting.BOSS_HEIGHT);
+      boss.health = boss.maxHealth = Math.ceil(Setting.BOSS_HEALTH * this.difficulty());
+      boss.armor = boss.maxArmor = Math.ceil(Setting.BOSS_ARMOR * this.difficulty());
+    }
     this.enemies.push(boss);
     this.boss = boss;
+  }
+
+  // Host: a boss fell. The False Knight opens the way to the Grove; the Warden ends the run.
+  bossDefeated(boss) {
+    if (!this.isHost()) return;
+    if (this.stage !== "boss1") {
+      this.finishGame();
+      return;
+    }
+    this.ui.showTitle(Setting.AREA2_TRANSITION_DELAY, "The way to the Sunken Grove opens");
+    if (this.isNetworked()) this.net.send({ t: "ev", e: "grove-opens" });
+    setTimeout(() => {
+      if (this.stage !== "boss1") return;
+      this.enterArea2();
+      if (this.isNetworked()) this.net.send({ t: "ev", e: "area2" });
+    }, Setting.AREA2_TRANSITION_DELAY);
+  }
+
+  // Catch up to the host's stage (also used for late joiners / rejoiners)
+  syncStage(target) {
+    let guard = 4;
+    while (STAGES.indexOf(this.stage) < STAGES.indexOf(target) && guard-- > 0) {
+      if (this.stage === "boss1") this.enterArea2();
+      else this.changeBossScene();
+    }
+  }
+
+  // Area 2: the Sunken Grove. New look, new enemies, a bench, and a gate to the Warden.
+  enterArea2() {
+    if (STAGES.indexOf(this.stage) >= STAGES.indexOf("area2")) return;
+    preloadArea2();
+    this.stage = "area2";
+    this.bossFight = false;
+    this.boss = null;
+    this.enemies.length = 0;
+    // Drop leftovers from the boss room (the False Knight's ghost)
+    this.characters = this.characters.filter((c) => c === this.player);
+
+    this.mainBackground.sprite = A2_BACKGROUND();
+    this.mainBackground.reset();
+    this.backgrounds.forEach((bg) => {
+      bg.sprite = A2_FOREGROUND();
+      bg.reset();
+    });
+    this.grounds.forEach((ground) => {
+      if (ground instanceof Ground) ground.sprite = A2_FLOOR();
+    });
+    this.objects.length = 0;
+    Ground.GeneratePlatform(A2_PLATFORM());
+    Rest.GenerateRest();
+    this.bossDoor.setArea(2);
+
+    this.areaStartKills = this.ui.money;
+    this.ui.changeMoney(this.ui.money);
+    this.audio.stopAllAudio();
+    this.audio.play(MyAudio.HOME);
+    this.ui.showTitle(Setting.AREA2_TITLE_TIME, "Sunken Grove");
+    this.respawnPlayer();
+    // First wave right away instead of waiting for the spawn timer
+    if (this.isHost()) this.spawnEnemy();
   }
 
   shakeScene(t) {

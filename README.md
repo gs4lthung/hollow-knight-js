@@ -88,6 +88,19 @@ This is a browser-based adaptation of the beloved indie game Hollow Knight. Play
 On the start screen the D-pad picks a knight and **A** starts; in the lobby **A** toggles Ready
 and **Start** lets the host begin.
 
+### Sunken Grove (Area 2)
+Defeating the False Knight opens the way to the **Sunken Grove**, a flooded mossy cavern with
+its own bench, new enemies and a second boss:
+- **Mossling**: wanders, then charges at a knight who comes close.
+- **Spore Drifter**: hovers out of reach and puffs spores (hit a spore to pop it).
+- **Grove Warden**: walks in and slashes, leaps at far knights, and summons thorns under
+  everyone (a glowing mark warns where they'll burst). Break its armor to stun it, then
+  strike. Defeating it ends the run with the scoreboard.
+
+The Grove's gate needs its own kills (shown as "Door" on the HUD). Art lives in
+`assets/game/area2/` (see `docs/area2-art-brief.md`); any piece that isn't drawn yet shows a
+teal-tinted stand-in from the first area.
+
 ### Bench Shop
 Press **E** at the bench to rest (full hearts) and open the shop. Every kill by anyone on the
 team gives each player a coin; spend them on upgrades: **Mask Shard** (+1 heart),

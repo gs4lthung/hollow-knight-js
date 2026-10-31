@@ -4,8 +4,7 @@ import { Object } from "../parent/object.js";
 import { Setting } from "../setting.js";
 
 export class Ground extends Object {
-  static GeneratePlatform() {
-    const sprite = GET_PLATFORM_SPRITE();
+  static GeneratePlatform(sprite = GET_PLATFORM_SPRITE()) {
     const nodeList = [
       {
         x: 300,

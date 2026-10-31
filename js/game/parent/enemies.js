@@ -2,6 +2,7 @@ import { isInTheLeft } from "../facade/helper.js";
 import { GAME } from "../game.js";
 import { Character } from "./character.js";
 import { Setting } from "../setting.js";
+import { PLACEHOLDER_FILTER } from "../facade/area2assets.js";
 
 export class Enemy extends Character {
   constructor(x, y, w, h, sprite, config, gravity = true) {
@@ -18,6 +19,14 @@ export class Enemy extends Character {
     }
     this.invert = 1; // white flash so the hit reads
     return false;
+  }
+
+  // Area 2 placeholder art is drawn tinted; combined with the white hit flash
+  checkInvert() {
+    const filters = [];
+    if (this.sprite && this.sprite.placeholder) filters.push(PLACEHOLDER_FILTER);
+    if (this.invert > 0) filters.push(`invert(${this.invert})`);
+    if (filters.length) this.game.ctx.filter = filters.join(" ");
   }
 
   fadeHitFlash() {

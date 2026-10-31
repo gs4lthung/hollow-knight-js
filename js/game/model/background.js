@@ -2,6 +2,8 @@ import { GAME } from "../game.js";
 import { GET_BOSS_DOOR, GET_FG_FIRST } from "../facade/file.js";
 import { Object } from "../parent/object.js";
 import { Setting } from "../setting.js";
+import { PLACEHOLDER_FILTER } from "../facade/area2assets.js";
+import { isDrawable } from "../facade/helper.js";
 
 export class Background {
   // Static method for generating background
@@ -60,7 +62,16 @@ export class Background {
 
   render() {
     this.logic();
-    this.ctx.drawImage(this.sprite, this.x, this.y, this.w, this.h);
+    if (!isDrawable(this.sprite)) return;
+    if (this.sprite.placeholder) {
+      // Area 2 art that doesn't exist yet: tinted stand-in
+      this.ctx.save();
+      this.ctx.filter = PLACEHOLDER_FILTER;
+      this.ctx.drawImage(this.sprite, this.x, this.y, this.w, this.h);
+      this.ctx.restore();
+    } else {
+      this.ctx.drawImage(this.sprite, this.x, this.y, this.w, this.h);
+    }
     this.callbacks.forEach((callback) => {
       callback();
     });

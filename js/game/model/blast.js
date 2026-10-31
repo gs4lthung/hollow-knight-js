@@ -35,7 +35,7 @@ export class Blast extends Character {
       if (enemy.isCollideBlock(x, y, w, h)) {
         if (!enemy.isDead()) {
           // Check if hitted the boss
-          if (enemy instanceof Boss) {
+          if (enemy.isBoss) {
             if (this.hittedBoss) {
               return;
             } else {

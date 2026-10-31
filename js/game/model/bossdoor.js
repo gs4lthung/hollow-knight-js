@@ -4,6 +4,7 @@ import { Object } from "../parent/object.js";
 import { Setting } from "../setting.js";
 import { Background } from "./background.js";
 import { UI } from "./ui.js";
+import { A2_GATE } from "../facade/area2assets.js";
 
 export class BossDoor {
   // Decide Render First
@@ -22,7 +23,7 @@ export class BossDoor {
   }
 
   generateBackground() {
-    const img = GET_BOSS_DOOR(BossDoor.BOSS_BACKGROUND);
+    const img = this.image(BossDoor.BOSS_BACKGROUND);
     const game = GAME.getInstance();
     const scale = 1.3;
     const w = 591 * scale; // 591 -> IMAGE.png WIDTH
@@ -34,9 +35,11 @@ export class BossDoor {
     const door = new Background(x, y, w, h, img, game.ctx);
     this.bossDoors[BossDoor.BOSS_BACKGROUND] = door;
 
-    // Make all ground black below the top ground
+    // Make all ground black below the top ground. The Grove gate stands on
+    // the floor instead (its art has no ground of its own).
+    const inset = this.area === 2 ? w : 0;
     this.bossDoors[BossDoor.FREE_OBJECT] = new Object(
-      x,
+      x + inset,
       Setting.HEIGHT - 170,
       w,
       game.height,
@@ -47,7 +50,24 @@ export class BossDoor {
     );
   }
 
+  // 1 = the False Knight's door, 2 = the Sunken Grove gate to the Warden
+  image(n) {
+    return this.area === 2 ? A2_GATE(n) : GET_BOSS_DOOR(n);
+  }
+
+  // New area: a fresh, closed door with that area's art
+  setArea(area) {
+    this.area = area;
+    this.fade = 0;
+    this.open = false;
+    this.showLight = false;
+    this.bossDoors = [];
+    this.generateDoor();
+    this.generateBackground();
+  }
+
   constructor() {
+    this.area = 1;
     this.fade = 0;
     this.open = false;
     this.bossDoors = [];
@@ -60,7 +80,7 @@ export class BossDoor {
   }
 
   generateDoor() {
-    const img = GET_BOSS_DOOR(BossDoor.BOSS_DOOR);
+    const img = this.image(BossDoor.BOSS_DOOR);
     const game = GAME.getInstance();
     const scale = 1.3;
     const w = 574 * scale; // PNG WIDTH
@@ -147,7 +167,7 @@ export class BossDoor {
   }
 
   generatePortal() {
-    const img = GET_BOSS_DOOR(BossDoor.BOSS_PORTAL);
+    const img = this.image(BossDoor.BOSS_PORTAL);
     const game = GAME.getInstance();
     const scale = 1.3;
     const w = 574 * scale;

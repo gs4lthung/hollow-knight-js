@@ -47,6 +47,11 @@ export class Cheat {
       ui.setSkillText(game.player.blastPower);
       BossDoor.GetInstance().openDoor();
     });
+    this.addCheat("grove", () => {
+      if (!game.isHost()) return;
+      game.syncStage("area2");
+      if (game.isNetworked()) game.net.send({ t: "ev", e: "area2" });
+    });
     this.addCheat("gotoboss", () => {
       game.requestBossScene();
     });

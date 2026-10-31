@@ -11,3 +11,6 @@ node_modules/
 *.psd
 *.docx
 __pycache__/
+
+# Blender backup copies
+*.blend1

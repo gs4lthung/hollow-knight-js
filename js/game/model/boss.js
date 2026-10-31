@@ -59,6 +59,12 @@ export class Boss extends Enemy {
     this.maxArmor = Setting.BOSS_ARMOR;
     this.isStrike = true;
     this.jumping = false;
+    this.isBoss = true;
+    this.displayName = "False Knight";
+  }
+
+  isStunned() {
+    return this.state == Boss.STUN;
   }
 
   landing() {
@@ -379,7 +385,7 @@ export class Boss extends Enemy {
     this.maxSpeed = Setting.BOSS_DEATH_SPEED;
     this.changeState(Boss.DEATH);
 
-    this.game.finishGame();
+    this.game.bossDefeated(this);
   }
 
   decrementHealth(n = 0) {

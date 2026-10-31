@@ -18,6 +18,11 @@ export function isInTheLeft(obj, obj2) {
     return false;
   }
 }
+// False for an image that failed to load (drawing it would throw and stop the game loop)
+export function isDrawable(img) {
+  return !!img && !(img.complete && img.naturalWidth === 0);
+}
+
 export function getDistance(x1, y1, x2, y2) {
   return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
 }
