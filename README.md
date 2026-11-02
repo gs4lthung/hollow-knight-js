@@ -69,6 +69,26 @@ This is a browser-based adaptation of the beloved indie game Hollow Knight. Play
    - On Windows, allow Node.js through the firewall (private networks) the first time a friend connects.
    - Opened without the server (any other static file server), the game runs in single-player mode.
 
+### Hosting on IIS
+
+IIS can run the game server for you (it starts and restarts `node server.js` itself), so friends
+open `http://<pc-name-or-ip>/game.html` on port 80 instead of `:3000`. One-time setup, as an administrator:
+
+1. **Windows features** (*Turn Windows features on or off* → Internet Information Services →
+   World Wide Web Services → Application Development Features): tick **WebSocket Protocol**.
+2. **Install [HttpPlatformHandler](https://www.iis.net/downloads/microsoft/httpplatformhandler)**
+   (Microsoft's IIS module that runs Node behind IIS).
+3. **Write the config** in the project folder: `npm install`, then `npm run iis-config`
+   (`npm run iis-config -- 8080` if the site uses another port; add a public address as a second
+   argument, e.g. `npm run iis-config -- 443 https://game.example.com`, to show that link in the lobby).
+4. **Create the site** in IIS Manager: Sites → *Add Website*, physical path = the project folder,
+   binding = port 80 (or your port). Give **IIS_IUSRS** read access to the folder and modify access to
+   its `logs` folder (server output lands in `logs/node_*.log`).
+5. Close any `npm start` window (it would be a separate game on `:3000`), open `http://localhost/game.html`, and let friends in
+   through the Windows firewall on the site's port.
+
+Players who open the game by the PC's address see that same address as the invite link in the lobby.
+
 
 ## 🎯 How to Play
 

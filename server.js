@@ -11,7 +11,10 @@ const { WebSocketServer } = require("ws");
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = __dirname;
 const MAX_PLAYERS = 4;
-const BLOCKED = ["node_modules", ".git", "server.js", "package.json", "package-lock.json"];
+const BLOCKED = ["node_modules", ".git", "server.js", "package.json", "package-lock.json", "web.config", "logs", "tools"];
+// Behind IIS the server listens on a private port; these say what friends should open instead
+const SHARE_PORT = Number(process.env.SHARE_PORT) || PORT;
+const PUBLIC_URL = (process.env.PUBLIC_URL || "").replace(/\/+$/, "");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -100,7 +103,8 @@ const lanUrls = Object.values(os.networkInterfaces())
   .filter((net) => net && net.family === "IPv4" && !net.internal)
   // Home routers usually use 192.168.x.x; list those first (172.x is often a virtual adapter)
   .sort((a, b) => b.address.startsWith("192.168.") - a.address.startsWith("192.168."))
-  .map((net) => `http://${net.address}:${PORT}/game.html`);
+  .map((net) => `http://${net.address}${SHARE_PORT === 80 ? "" : ":" + SHARE_PORT}/game.html`);
+if (PUBLIC_URL) lanUrls.unshift(`${PUBLIC_URL}/game.html`);
 
 const clients = new Map(); // id -> { ws, slot }
 let nextId = 1;

@@ -5,7 +5,8 @@
   "description": "WCL Knights - Hollow Knight-style browser game with LAN co-op",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "iis-config": "node tools/iis-config.js"
   },
   "dependencies": {
     "ws": "^8.18.0"

@@ -42,6 +42,14 @@ function rejoinToken() {
     return "";
   }
 }
+
+// The address this page was opened at is what friends can use too (e.g. through
+// IIS); the server's own LAN links only help when opened from localhost
+function shareUrls(serverUrls) {
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  const here = local ? [] : [`${location.origin}/game.html`];
+  return [...new Set([...here, ...serverUrls])];
+}
 const MAX_PLAYERS = 4;
 
 // LAN co-op client. Talks to server.js over a WebSocket.
@@ -153,7 +161,7 @@ export class Network {
         this.id = msg.id;
         this.slot = msg.slot;
         this.isHost = msg.host;
-        this.joinUrls = msg.urls || [];
+        this.joinUrls = shareUrls(msg.urls || []);
         this.inGame = !!msg.inGame;
         this.rejoined = !!msg.rejoined;
         this.updateStatus();

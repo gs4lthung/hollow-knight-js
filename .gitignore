@@ -14,3 +14,7 @@ __pycache__/
 
 # Blender backup copies
 *.blend1
+
+# Machine-specific IIS setup (npm run iis-config) and its logs
+web.config
+logs/
