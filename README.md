@@ -1,39 +1,39 @@
-# Hollow Knight JavaScript Game
+# WCL Knights
 
-A web-based implementation of Hollow Knight built with vanilla JavaScript, HTML5 Canvas, and modern web technologies. This project recreates the atmospheric 2D platformer experience in the browser.
+A 2D action platformer for the browser with **LAN co-op for up to 4 players**. Pick one of five
+knights - four of them elemental heroes with their own stats and skill - fight through two areas
+and two bosses together, revive each other, and compare scores at the end.
 
-**Project Initiated: 2022** | **Created WITHOUT the use of any Artificial Intelligence**
+Built with vanilla JavaScript and HTML5 Canvas, with a small Node.js server for multiplayer.
+Based on [hollow-knight-js](https://github.com/TinTinWinata/hollow-knight-js) by TinTin Winata,
+a fan-made Hollow Knight tribute.
 
-![Hollow Knight Game Screenshot](image.png)
-
-## 🎮 Game Overview
-
-This is a browser-based adaptation of the beloved indie game Hollow Knight. Players control the enigmatic Knight as they explore a vast, ancient kingdom beneath the fading town of Dirtmouth. The game features platforming mechanics, combat systems, boss battles, and atmospheric audio-visual design.
+![Four knights in the Sunken Grove](docs/screenshot-coop.png)
 
 ## ✨ Features
 
-### Core Gameplay
-- **2D Platformer Mechanics**: Jump, dash, and navigate through challenging environments
-- **Combat System**: Attack enemies with your nail, use special abilities like blast attacks
-- **Boss Battles**: Face off against formidable foes like the False Knight
-- **Enemy AI**: Fight against Crawlids, Booflies, and other creatures
-- **Health System**: Manage your health with a visual health bar
-- **Currency System**: Collect geo (money) from defeated enemies
+- **Solo or Play with Friends**: play alone offline, or co-op over your local network with up to
+  4 players (lobby, ready-up, join mid-game, rejoin after a refresh, host migration if the host leaves)
+- **Five heroes**: the Knight plus four elemental heroes with different body types, stats and skills
+- **Two areas, two bosses**: the first area and the False Knight, then the Sunken Grove and the Grove Warden
+- **Co-op that scales**: wider camera, tougher and more numerous enemies, boss health per player count
+- **Revive and party wipe**: downed players wait for a teammate instead of respawning
+- **Elemental combos**: fire, water, earth and wind skills combine when they touch
+- **Bench shop**: spend coins on hearts, damage, reach, attack speed and skill charge
+- **Scoreboard**: kills, boss damage, deaths, revives and a title for each player
+- **Player names**, **boss health bars**, **controller support** and **fullscreen**
 
-### Technical Features
-- **HTML5 Canvas Rendering**: Smooth 60fps gameplay
-- **Sprite Animation**: Detailed character and enemy animations
-- **Audio System**: Immersive sound effects and background music
-- **Camera System**: Dynamic camera following with screen shake effects
-- **Particle Effects**: Visual feedback for attacks and environmental effects
-- **Pause System**: Full game pause with options menu
-- **Fullscreen Mode**: Immersive fullscreen gameplay experience
+## 🦸 Heroes
 
-### UI/UX Features
-- **Responsive Design**: Works across different screen sizes
-- **Landing Page**: Beautiful promotional website with game information
-- **Interactive Elements**: Animated menus and transitions
-- **Settings Menu**: Volume control and FPS display options
+| Hero | Element | Hearts | Plays like | Skill |
+|------|---------|--------|------------|-------|
+| **Knight** | - | 5 | Balanced all-rounder | **Soul Blast** - a piercing blast of soul |
+| **Ember** | Fire | 4 | Fast, quick attacks, short reach | **Fireball** - a fast fireball that hits hard |
+| **Bastion** | Earth | 8 | Slow, heavy tank | **Rock Spikes** - spikes burst from the ground in front |
+| **Tide** | Water | 5 | Support, long reach | **Healing Wave** - heals you and nearby allies, splashes enemies |
+| **Zephyr** | Wind | 3 | Fastest, high jumps, short dash cooldown | **Tornado** - a drifting tornado that keeps hitting |
+
+Hero art is made in Blender (`tools/blender/wcl_art.blend`; brief in `docs/hero-art-brief.md`).
 
 ## 🚀 Getting Started
 
@@ -97,7 +97,7 @@ Players who open the game by the PC's address see that same address as the invit
 - **Z / Up Arrow**: Jump
 - **X**: Attack with nail
 - **S**: Dash
-- **A**: Blast attack (charged by hitting enemies)
+- **A**: Hero skill (charged by hitting enemies)
 - **Space / E**: Interact (boss door, rest at bench); hold next to a downed teammate to revive
 - **Escape**: Pause game
 - **F**: Toggle fullscreen
@@ -117,9 +117,9 @@ its own bench, new enemies and a second boss:
   everyone (a glowing mark warns where they'll burst). Break its armor to stun it, then
   strike. Defeating it ends the run with the scoreboard.
 
-The Grove's gate needs its own kills (shown as "Door" on the HUD). Art lives in
-`assets/game/area2/` (see `docs/area2-art-brief.md`); any piece that isn't drawn yet shows a
-teal-tinted stand-in from the first area.
+The Grove's gate needs its own kills (shown as "Door" on the HUD). Its art lives in
+`assets/game/area2/` (see `docs/area2-art-brief.md`); a piece that's missing falls back to a
+teal-tinted stand-in from the first area, so new art can be dropped in without code changes.
 
 ### Bench Shop
 Press **E** at the bench to rest (full hearts) and open the shop. Every kill by anyone on the
@@ -136,113 +136,51 @@ When two elements' skills touch, they combine:
 - **Earth + Wind = Sandstorm**: the tornado grows and hits harder
 
 ### Gameplay Tips
-- Defeat enemies to collect geo (money)
-- Use platforms to reach higher areas
-- Watch your health - you have 5 hearts
-- Find the boss door by defeating enough enemies
-- Use dash to avoid attacks and reach distant platforms
-- Rest at benches to recover health
+- Kill enemies to open the boss door - the HUD shows how many kills the team still needs
+- Rest at the bench to refill your hearts and spend coins
+- Dash through attacks; use platforms to get above charging enemies
+- In co-op, mix elements - skills that touch combine into combos
+- Stay near teammates so you can revive each other
 
 ## 🏗️ Project Structure
 
 ```
 hollow-knight-js/
-├── assets/                 # Game assets
-│   ├── game/              # In-game sprites and audio
-│   │   ├── audio/         # Sound effects and music
-│   │   ├── hero/          # Player character sprites
-│   │   ├── boss/          # Boss enemy sprites
-│   │   ├── enemies/       # Enemy sprites (crawlid, boofly)
-│   │   └── ui/            # User interface elements
-│   ├── landing/           # Landing page assets
-│   └── font/              # Custom fonts
-├── css/                   # Stylesheets
-│   ├── game.css          # Game-specific styles
-│   ├── landing.css       # Landing page styles
-│   └── style.css         # Base styles
-├── js/                    # JavaScript modules
-│   ├── game/             # Core game logic
-│   │   ├── model/        # Game object classes
-│   │   ├── facade/       # Utility modules
-│   │   └── parent/       # Base classes
-│   └── landing.js        # Landing page functionality
-├── index.html            # Landing page
-└── game.html             # Game page
+├── server.js              # Serves the game and relays co-op messages (WebSocket at /ws)
+├── game.html              # The game
+├── index.html             # Landing page
+├── assets/game/
+│   ├── heroes/            # Sprites for the five heroes
+│   ├── area2/             # Sunken Grove level, enemies and Grove Warden
+│   └── ...                # First-area sprites, audio, UI
+├── js/game/
+│   ├── game.js            # Game loop, stages, co-op state, scoreboard
+│   ├── heroes.js          # Hero stats and skills
+│   ├── lobby.js           # Co-op lobby
+│   ├── shop.js            # Bench shop
+│   ├── gamepad.js         # Controller input
+│   ├── model/             # Player, enemies, bosses, skills, level objects
+│   ├── facade/            # Networking, audio, camera, asset loading
+│   └── parent/            # Base classes
+├── docs/                  # Art briefs and screenshot
+└── tools/                 # Blender art project and IIS config script
 ```
 
-## 🛠️ Technical Architecture
+## 🛠️ How Co-op Works
 
-### Core Systems
-- **Game Engine**: Custom JavaScript game engine with entity-component architecture
-- **Rendering**: HTML5 Canvas with sprite-based graphics
-- **Physics**: Custom collision detection and gravity system
-- **Audio**: Web Audio API integration with volume controls
-- **Animation**: Frame-based sprite animation system
-
-### Key Classes
-- `GAME`: Main game controller and state management
-- `Player`: Player character with movement and combat abilities
-- `Boss`: Boss enemy with complex AI patterns
-- `Crawlid/Boofly`: Enemy classes with different behaviors
-- `Camera`: Dynamic camera system with smooth following
-- `UI`: User interface management
-- `Audio`: Audio system with background music and sound effects
-
-## 🎨 Assets
-
-The game includes:
-- **Character Sprites**: Detailed animations for player, enemies, and bosses
-- **Environment Art**: Backgrounds, platforms, and environmental objects
-- **Audio**: High-quality sound effects and atmospheric music
-- **UI Elements**: Health bars, currency display, and menu graphics
-
-## 🔧 Development
-
-### Adding New Features
-1. Create new model classes in `js/game/model/`
-2. Extend base classes from `js/game/parent/`
-3. Register new objects in the main game loop
-4. Add corresponding sprites to the assets folder
-
-### Performance Optimization
-- Sprite caching for improved performance
-- Efficient collision detection algorithms
-- Optimized rendering pipeline
-- Audio preloading and management
-
-## 🐛 Known Issues
-
-- Some audio files may not load in certain browsers
-- Performance may vary on older devices
-- Fullscreen mode requires user interaction to activate
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
-
-### Development Guidelines
-- Follow existing code style and structure
-- Test changes across different browsers
-- Ensure assets are properly optimized
-- Document new features and changes
+- The first player to join is the **host**: their game runs the enemies and bosses and sends
+  snapshots to everyone 30 times a second. Each player sends their own knight's position and attacks.
+- Hits by other players are sent to the host, which applies them, so everyone sees the same fight.
+- If the host leaves, the next player takes over the enemies where they were.
 
 ## 📄 License
 
-This project is inspired by Hollow Knight by Team Cherry. This is a fan-made recreation for educational purposes.
+Fan-made and non-commercial, inspired by Hollow Knight by Team Cherry; the first area's art and
+audio come from the original project. For educational purposes.
 
 ## 🙏 Acknowledgments
 
-- **Team Cherry**: Original creators of Hollow Knight
-- **Christopher Larkin**: Composer of the original soundtrack
-
-## 📞 Contact
-
-Created by TinTin Winata as part of Web Design NAR 23-1 project.
-
-**Important Note**: This project was initiated in 2022 and developed entirely without the use of any artificial intelligence tools or assistance. All code, game logic, and implementation was created through traditional programming methods and human creativity.
-
----
-
-*"Alongside Courage And Perseverance We Shape and Define Our Future"* - JT 22-1
-
-**JeTe Knight** - Inspired by Hollow Knight
+- **TinTin Winata**: original [hollow-knight-js](https://github.com/TinTinWinata/hollow-knight-js)
+  (Web Design NAR 23-1)
+- **Team Cherry**: creators of Hollow Knight
+- **Christopher Larkin**: composer of the original soundtrack
