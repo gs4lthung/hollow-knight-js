@@ -77,10 +77,12 @@ def update_manifest():
     path = os.path.join(ROOT, "manifest.json")
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
-    data["regenerate"] = ("Open tools/blender/wcl_art.blend, exec hero_lib.py then kit_lib.py and call render_kit for the "
-                          "Kit_<element> scenes (hero_skills.py render_skill for Skill_<element>), then "
-                          "tools/blender/finish_frames.py --mirror --outline=2 (--settle-each, or --ground for jump) "
-                          "and tools/blender/heroes_check.py.")
+    data["regenerate"] = ("Open tools/blender/wcl_art.blend and exec, in one namespace, the texts hero_lib.py, kit_lib.py, "
+                          "ember_lib.py, elements_lib.py and skills_lib.py (the last three are also in tools/blender/). "
+                          "Heroes: build_ember() + render_ember(raw_dir) for fire, build_element(el) + render_element(el, raw_dir) "
+                          "for earth / water / wind, then tools/blender/finish_frames.py --mirror --outline=2 "
+                          "(--settle-each, or --ground for jump). Skills: restyle_skill(el, raw_dir), then finish_frames.py "
+                          "with no flags. Finally tools/blender/heroes_check.py.")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
