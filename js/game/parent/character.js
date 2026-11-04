@@ -411,6 +411,7 @@ export class Character {
       k: this.constructor.NET_KIND,
       x: Math.round(this.x),
       y: Math.round(this.y),
+      ...this.netVelocity(),
       w: Math.round(this.w),
       h: Math.round(this.h),
       b: this.backward ? 1 : 0,
@@ -429,18 +430,15 @@ export class Character {
   }
 
   applyNet(s) {
-    if (this.tx === undefined) {
-      this.x = s.x;
-      this.y = s.y;
-    }
-    this.tx = s.x;
-    this.ty = s.y;
+    this.setNetTarget(s);
     this.w = s.w;
     this.h = s.h;
     this.backward = !!s.b;
     this.spriteIdx = s.i;
     this.canCollide = !!s.c;
-    this.invert = s.v;
+    this.netInvert = s.v;
+    this.invert = Math.max(s.v || 0, this.invert || 0);
+    this.confirmHits(this.health, s.hp);
     this.health = s.hp;
     this.harmless = !!s.hm;
     this.applyNetAnim(s);
@@ -448,17 +446,59 @@ export class Character {
 
   applyNetAnim(s) {}
 
+  confirmHits() {}
+
   onNetRemove() {}
 
-  // Glide towards the last received position instead of jumping 30x a second
+  // Velocity for dead reckoning, measured from how far we really moved since the
+  // last update (vx alone lies when pushing against a wall). Call once per send.
+  // A teleport (respawn, area change) reports 0 so receivers don't fling it onward.
+  netVelocity() {
+    const now = performance.now();
+    const last = this.lastNetPos;
+    this.lastNetPos = { x: this.x, y: this.y, at: now };
+    if (!last) return { vx: 0, vy: 0 };
+    const dt = (now - last.at) / 1000;
+    const dx = this.x - last.x;
+    const dy = this.y - last.y;
+    if (dt <= 0 || dt > 0.5 || Math.abs(dx) > Setting.NET_SNAP_DISTANCE || Math.abs(dy) > Setting.NET_SNAP_DISTANCE) {
+      return { vx: 0, vy: 0 };
+    }
+    return { vx: Math.round(dx / dt), vy: Math.round(dy / dt) };
+  }
+
+  // A network update's position and velocity (s.vx / s.vy may be missing from old peers)
+  setNetTarget(s) {
+    if (this.tx === undefined) {
+      this.x = s.x;
+      this.y = s.y;
+    }
+    this.tx = s.x;
+    this.ty = s.y;
+    this.tvx = s.vx || 0;
+    this.tvy = s.vy || 0;
+    this.netAt = performance.now();
+  }
+
+  // Dead reckoning: updates arrive 20-30x a second and are already a little old,
+  // so carry the last position forward along its velocity (by the time since it
+  // arrived, plus part of the ping) and glide towards that guess. Moving things
+  // stay smooth and close to where the sender really has them; the guess is
+  // capped so a missed update can't send anything flying off.
   netSmooth() {
-    const dx = this.tx - this.x;
-    const dy = this.ty - this.y;
-    if (Math.abs(dx) > 400 || Math.abs(dy) > 400) {
-      this.x = this.tx;
-      this.y = this.ty;
+    if (this.tx === undefined) return;
+    const since = (performance.now() - this.netAt) / 1000;
+    const ping = this.game.net && this.game.net.ping ? this.game.net.ping / 1000 : 0;
+    const ahead = Math.min(since + Math.min(ping / 2, Setting.NET_MAX_LEAD), Setting.NET_MAX_EXTRAPOLATE);
+    const gx = this.tx + this.tvx * ahead;
+    const gy = this.ty + this.tvy * ahead;
+    const dx = gx - this.x;
+    const dy = gy - this.y;
+    if (Math.abs(dx) > Setting.NET_SNAP_DISTANCE || Math.abs(dy) > Setting.NET_SNAP_DISTANCE) {
+      this.x = gx;
+      this.y = gy;
     } else {
-      const k = Math.min(1, this.game.delta * 15);
+      const k = Math.min(1, this.game.delta * Setting.NET_SMOOTH);
       this.x += dx * k;
       this.y += dy * k;
     }

@@ -74,6 +74,7 @@ export class RemotePlayer extends Character {
     if (heroId !== this.heroId) {
       this.heroId = heroId;
       preloadHero(heroId);
+      GAME.getInstance().audio.preloadHero(HEROES[heroId].sfx);
       this.anim = null; // force the sprite to reload for the new hero
     }
     if (s.a !== this.anim) {
@@ -81,13 +82,8 @@ export class RemotePlayer extends Character {
       this.config = heroConfig(s.a);
       this.anim = s.a;
     }
-    if (this.tx === undefined) {
-      this.x = s.x;
-      this.y = s.y;
-    }
+    this.setNetTarget(s);
     this.slot = s.s;
-    this.tx = s.x;
-    this.ty = s.y;
     this.w = s.w;
     this.h = s.h;
     this.backward = !!s.b;

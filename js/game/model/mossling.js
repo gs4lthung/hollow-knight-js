@@ -23,7 +23,7 @@ export class Mossling extends Enemy {
     this.speed = Setting.CRAWLID_SPEED;
     this.backward = backward;
     this.maxSpeed = Setting.CRAWLID_MAX_SPEED;
-    this.health = Math.ceil(Setting.MOSSLING_HEALTH * this.game.difficulty());
+    this.health = Math.ceil(Setting.MOSSLING_HEALTH * this.game.enemyDifficulty());
     this.mode = "walk";
     this.modeTime = 0;
     this.cooldown = 0;

@@ -32,6 +32,10 @@ const net = Network.getInstance();
 const heroSelect = new HeroSelect("#hero-select");
 const lobby = new Lobby(net, heroSelect);
 net.onStart = () => beginGame();
+net.onLobbyLost = () => {
+  lobby.leave();
+  starting = false; // let them pick Solo or try Friends again
+};
 setupNameInput(() => lobby.sync());
 
 // Controller in the menus: A starts (or toggles Ready in the lobby), Start lets the host begin
@@ -102,7 +106,7 @@ function start() {
     game.after(game.enemySpawnInterval(), () => {
       for (let group = 0; group < game.spawnGroups(); group++) {
         game.after(group * Setting.SPAWN_GROUP_GAP, () => {
-          if (game.isHost() && !game.bossFight && game.aliveEnemy() < game.maxAliveEnemies()) {
+          if (game.isHost() && !game.bossFight && game.canSpawnGroup()) {
             game.spawnEnemy();
           }
         });
@@ -147,22 +151,23 @@ function start() {
 
   window.addEventListener("keydown", (e) => {
     if (shop.isOpen) return; // the shop has the keys while it's open
-    if (e.key == "Escape") {
+    const key = Setting.gameKey(e);
+    if (key == "Escape") {
       game.pauseGame(true);
     }
     // Disabled NAR Presentation Only
-    // if (e.key == "r") {
+    // if (key == "r") {
     //   game.useCamera = !game.useCamera;
     // }
-    if (e.key == "f") {
+    if (key == "f") {
       game.fullscreen();
     }
     if (game.canMove && !game.pause) {
-      if (e.key == Setting.PLAYER_ATTACK) {
+      if (key == Setting.PLAYER_ATTACK) {
         player.attack();
-      } else if (e.key == Setting.PLAYER_DASH) {
+      } else if (key == Setting.PLAYER_DASH) {
         player.dash();
-      } else if (e.key == Setting.PLAYER_BLAST) {
+      } else if (key == Setting.PLAYER_BLAST) {
         player.blast();
       }
     }
@@ -170,17 +175,18 @@ function start() {
 
   window.addEventListener("keydown", (e) => {
     if (shop.isOpen) return;
+    const key = Setting.gameKey(e);
     if (game.canMove && !game.pause) {
-      if (Setting.PLAYER_JUMP.includes(e.key)) {
+      if (Setting.PLAYER_JUMP.includes(key)) {
         player.jump();
       }
-      game.keys[e.key] = true;
+      game.keys[key] = true;
     }
   });
 
   window.addEventListener("keyup", (e) => {
     if (game.canMove) {
-      game.keys[e.key] = false;
+      game.keys[Setting.gameKey(e)] = false;
     }
   });
 

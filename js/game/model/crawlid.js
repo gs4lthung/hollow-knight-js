@@ -33,7 +33,7 @@ export class Crawlid extends Enemy {
     super.speed = Setting.CRAWLID_SPEED;
     super.backward = backward;
     super.maxSpeed = Setting.CRAWLID_MAX_SPEED;
-    this.health = Math.ceil(Setting.CRAWLID_HEALTH * this.game.difficulty());
+    this.health = Math.ceil(Setting.CRAWLID_HEALTH * this.game.enemyDifficulty());
   }
 
   checkBackward() {

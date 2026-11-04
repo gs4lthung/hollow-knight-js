@@ -1,10 +1,12 @@
 import { MyAudio } from "../facade/audio.js";
 import { GAME } from "../game.js";
-import { SKILL_CONF, heroOf, heroSkillSprite } from "../heroes.js";
+import { SKILL_CONF, heroOf, heroSfx, heroSkillSprite } from "../heroes.js";
 import { Character } from "../parent/character.js";
 import { getDistance } from "../facade/helper.js";
 import { Particle } from "./particle.js";
 import { UI } from "./ui.js";
+
+const TEAMMATE_VOLUME = 0.6;
 
 // Two elements' skills touching make a combo (keys are the hero ids, sorted).
 // Every player sees it, but only one caster deals its damage so it counts once:
@@ -91,7 +93,7 @@ export class SkillEffect extends Character {
     this.filter = null;
 
     const audio = MyAudio.getInstance();
-    audio.play(MyAudio.PLAYER_BLAST, false);
+    audio.playHero(heroSfx(heroId, "skill"), MyAudio.PLAYER_BLAST, visualOnly ? TEAMMATE_VOLUME : 1);
     if (skill.shake) this.game.shakeScene(skill.shake);
     if (skill.heal) this.healLocalPlayer();
   }

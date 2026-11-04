@@ -66,7 +66,7 @@ export class SporeDrifter extends Enemy {
 
   constructor(x, y, w, h) {
     super(x, y, w, h, DRIFTER_SPRITE("fly"), DRIFTER_CONF.fly, false);
-    this.health = Math.ceil(Setting.DRIFTER_HEALTH * this.game.difficulty());
+    this.health = Math.ceil(Setting.DRIFTER_HEALTH * this.game.enemyDifficulty());
     this.maxSpeed = 160;
     this.mode = "fly";
     this.shootTimer = 2 + Math.random();

@@ -67,7 +67,7 @@ export class Boofly extends Enemy {
     super.backward = backward;
     // super.canCollide = false;
     super.maxSpeed = Setting.BOOFLY_MAX_SPEED;
-    this.health = Math.ceil(Setting.BOOFLY_HEALTH * this.game.difficulty());
+    this.health = Math.ceil(Setting.BOOFLY_HEALTH * this.game.enemyDifficulty());
     this.chasing = false;
   }
 

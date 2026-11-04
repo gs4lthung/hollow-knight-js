@@ -15,7 +15,6 @@ const BUTTON_KEYS = {
   15: "ArrowRight",
 };
 const STICK_DEADZONE = 0.5;
-const INTERACT_KEY = "e";
 
 export const PAD_BUTTON = { A: 0, START: 9 };
 
@@ -86,8 +85,6 @@ export class GamepadInput {
       if (this.held.has(key)) return;
       this.held.add(key);
       this.send("keydown", key);
-      // The boss door listens for keypress rather than keydown
-      if (key === INTERACT_KEY) this.send("keypress", key);
     });
     [...this.held].forEach((key) => {
       if (want.has(key)) return;

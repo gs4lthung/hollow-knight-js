@@ -104,9 +104,9 @@ export class BossDoor {
     }
   }
 
-  addListener(key) {
-    const k = key.key;
-    if (Setting.PLAYER_INTERACT.includes(k)) {
+  addListener(e) {
+    if (e.repeat) return;
+    if (Setting.PLAYER_INTERACT.includes(Setting.gameKey(e))) {
       const game = GAME.getInstance();
       game.requestBossScene();
       const ui = UI.getInstance();
@@ -125,10 +125,10 @@ export class BossDoor {
     ) {
       this.changeTitle();
       $("#title").fadeIn(300);
-      window.addEventListener("keypress", this.addListener);
+      window.addEventListener("keydown", this.addListener);
     } else {
       $("#title").fadeOut(2000);
-      window.removeEventListener("keypress", this.addListener);
+      window.removeEventListener("keydown", this.addListener);
     }
   }
 

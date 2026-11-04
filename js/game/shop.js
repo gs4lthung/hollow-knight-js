@@ -1,6 +1,7 @@
 import { GAME } from "./game.js";
 import { MyAudio } from "./facade/audio.js";
 import { UI } from "./model/ui.js";
+import { Setting } from "./setting.js";
 
 // Upgrades bought at the bench. Prices go up with each level.
 // apply(player) runs once per purchase (and again on rejoin to restore them).
@@ -69,6 +70,7 @@ export class Shop {
   constructor() {
     this.isOpen = false;
     this.selected = 0;
+    this.pausedGame = false; // whether open() paused the world (solo only)
     this.onKeyDown = this.onKeyDown.bind(this);
     $("#shop .shop-close").on("click", () => this.close());
   }
@@ -103,7 +105,10 @@ export class Shop {
     game.keys = [];
     game.player.shopping = true;
     // Alone, the world waits for you; with friends it keeps going (you're safe at the bench)
-    if (!game.hasPeers()) game.pause = true;
+    // Remember whether we paused, so closing undoes exactly that even if
+    // someone joins or leaves while the shop is open
+    this.pausedGame = !game.hasPeers() && !game.pause;
+    if (this.pausedGame) game.pause = true;
     window.addEventListener("keydown", this.onKeyDown);
     this.render();
     $("#shop").fadeIn(150);
@@ -114,7 +119,8 @@ export class Shop {
     const game = this.game();
     this.isOpen = false;
     game.player.shopping = false;
-    if (!game.hasPeers()) game.pause = false;
+    if (this.pausedGame) game.pause = false;
+    this.pausedGame = false;
     window.removeEventListener("keydown", this.onKeyDown);
     $("#shop").fadeOut(150);
   }
@@ -140,7 +146,7 @@ export class Shop {
   // E and Space are handled by the bench itself, which toggles the shop.
   onKeyDown(e) {
     if (e.repeat) return;
-    switch (e.key) {
+    switch (Setting.gameKey(e)) {
       case "ArrowUp":
         this.selected = (this.selected + SHOP_ITEMS.length - 1) % SHOP_ITEMS.length;
         this.render();

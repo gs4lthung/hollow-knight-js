@@ -1,5 +1,7 @@
 import { GAME } from "../game.js";
 
+const SFX_COPIES = 4;
+
 export class MyAudio {
   static instance;
   static HOME = 0;
@@ -103,6 +105,7 @@ export class MyAudio {
     this.audios.forEach((audio) => {
       audio.pause();
     });
+    (this.sfxPools || new Map()).forEach((pool) => pool.forEach((audio) => audio.pause()));
   }
 
   fadeVideo() {
@@ -126,6 +129,46 @@ export class MyAudio {
     }
     return this.instance;
   };
+
+  // One-shot sound from a file (hero sounds). A few copies per file so several
+  // players attacking at once overlap instead of restarting one another.
+  // volume scales the master volume (teammates' attacks play quieter).
+  playSfx(src, volume = 1) {
+    const pool = this.sfxPool(src);
+    const audio = pool[pool.next];
+    pool.next = (pool.next + 1) % pool.length;
+    audio.currentTime = 0;
+    audio.volume = Math.max(0, Math.min(1, this.getValueFromRange() * volume));
+    audio.play().catch(() => {});
+  }
+
+  // Creates (and starts loading) the copies of a sound file; call early to avoid a late first play
+  sfxPool(src) {
+    if (!this.sfxPools) this.sfxPools = new Map();
+    let pool = this.sfxPools.get(src);
+    if (!pool) {
+      pool = Array.from({ length: SFX_COPIES }, () => {
+        const audio = new Audio(src);
+        audio.preload = "auto";
+        return audio;
+      });
+      pool.next = 0;
+      this.sfxPools.set(src, pool);
+    }
+    return pool;
+  }
+
+  // Loads a hero's sounds ahead of their first use
+  preloadHero(sfx) {
+    if (sfx) Object.values(sfx).forEach((src) => this.sfxPool(src));
+  }
+
+  // A hero's own sound, falling back to the knight's built-in one
+  playHero(src, fallback, volume = 1) {
+    if (src) this.playSfx(src, volume);
+    else if (volume >= 1) this.play(fallback, false);
+    else this.playSfx(this.audios[fallback].getAttribute("src"), volume);
+  }
 
   play(state, loop = true) {
     this.audios[state].currentTime = 0;

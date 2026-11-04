@@ -25,8 +25,10 @@ export class Rest extends Object {
   listener(e) {
     const ui = UI.getInstance();
     const game = GAME.getInstance();
-    if (!Setting.PLAYER_INTERACT.includes(e.key) || e.repeat || game.player.dead) return;
+    if (!Setting.PLAYER_INTERACT.includes(Setting.gameKey(e)) || e.repeat || game.player.dead) return;
     const shop = Shop.getInstance();
+    // Not on top of a pause (hit-stop or the pause menu): closing would unpause it
+    if (!shop.isOpen && game.pause) return;
     if (!shop.isOpen) {
       ui.whiteScreen(200, 0.5);
       game.audio.play(MyAudio.BENCH_REST, false);

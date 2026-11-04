@@ -20,7 +20,7 @@ import { MyAudio } from "../facade/audio.js";
 import { Blast } from "./blast.js";
 import { SkillEffect } from "./skill.js";
 import { SHOP_ITEMS } from "../shop.js";
-import { DEFAULT_HERO, HEROES, heroOf, heroSprite, preloadHero } from "../heroes.js";
+import { DEFAULT_HERO, HEROES, heroOf, heroSfx, heroSprite, preloadHero } from "../heroes.js";
 
 const RUN_STATS_KEY = "wcl-knights-run";
 
@@ -105,7 +105,7 @@ export class Player extends Character {
         this.sprite = heroSprite(this.heroId, "walk");
         break;
       case "attack":
-        this.game.audio.play(MyAudio.PLAYER_ATTACK, false);
+        this.game.audio.playHero(heroSfx(this.heroId, "attack"), MyAudio.PLAYER_ATTACK);
         this.spriteIdx = 0;
         this.anim = "attack" + this.attackState;
         this.sprite = heroSprite(this.heroId, this.anim);
@@ -275,7 +275,7 @@ export class Player extends Character {
       return;
 
     for (const enemy of this.game.enemies) {
-      if (enemy.isCollideBlock(x, y, w, h) && !enemy.dead && !enemy.harmless) {
+      if (enemy.isCollideBlock(x, y, w, h) && !enemy.dead && !enemy.harmless && !enemy.isPredictedDead?.()) {
         // Collide With Enemy!
         // Projectiles (spores) pop on impact
         if (enemy.isProjectile) this.game.damageEnemy(enemy, 1);
@@ -384,6 +384,7 @@ export class Player extends Character {
     this.splashHeight = 150 * hero.stats.range;
     this.attackSpeed = 0.4 / hero.stats.attackSpeed;
     preloadHero(this.heroId);
+    this.game.audio.preloadHero(hero.sfx);
     this.game.ui.setMaxHealth(this.maxHealthValue);
   }
 
@@ -749,6 +750,7 @@ export class Player extends Character {
       t: "p",
       x: Math.round(this.x),
       y: Math.round(this.y),
+      ...this.netVelocity(),
       w: Math.round(this.w),
       h: Math.round(this.h),
       b: this.backward ? 1 : 0,

@@ -16,6 +16,7 @@ import {
   drawReviveHint,
 } from "../model/remoteplayer.js";
 import { Setting } from "../setting.js";
+import { heroSfx } from "../heroes.js";
 import { MyAudio } from "./audio.js";
 import {
   BOOFLY_CONF,
@@ -26,16 +27,29 @@ import {
   PLAYER_CONF,
 } from "./file.js";
 
-const SEND_INTERVAL = 1 / 30;
+const SEND_INTERVAL = 1 / 30; // our own knight
+const SNAPSHOT_INTERVAL = 1 / 20; // host: enemies (guests smooth between snapshots)
+const STATS_INTERVAL = 1; // host: scoreboard, only needed if the host changes
+// A real-time update older than the next one is worthless; if this much is still
+// waiting to go out, the connection is behind, so skip instead of piling up lag
+const MAX_BUFFERED = 64 * 1024;
+// Connection check shown on the status line: ping to the server, and (guests) the
+// longest wait between two enemy snapshots from the host in the last few seconds
+const PING_INTERVAL = 2;
+const HOST_GAP_WINDOW = 5000; // ms
+const HOST_GAP_WARN = 250; // ms; snapshots normally arrive every 50 ms
+const PING_WARN = 150; // ms
+const TEAMMATE_SFX_VOLUME = 0.4; // teammates' sword swings, under your own
+const REJOIN_KEY = "wcl-knights-rejoin";
 
 // Per-tab code so a refresh mid-game gets the same slot back (see server.js).
 // sessionStorage survives a refresh but not closing the tab.
 function rejoinToken() {
   try {
-    let token = sessionStorage.getItem("wcl-knights-rejoin");
+    let token = sessionStorage.getItem(REJOIN_KEY);
     if (!token) {
       token = Math.random().toString(36).slice(2) + Date.now().toString(36);
-      sessionStorage.setItem("wcl-knights-rejoin", token);
+      sessionStorage.setItem(REJOIN_KEY, token);
     }
     return token;
   } catch {
@@ -73,6 +87,12 @@ export class Network {
     this.slot = 0;
     this.players = new Map(); // id -> RemotePlayer
     this.sendTimer = 0;
+    this.snapshotTimer = 0;
+    this.statsTimer = STATS_INTERVAL;
+    this.pingTimer = PING_INTERVAL;
+    this.ping = null; // ms, round trip to the server
+    this.lastSnapAt = 0;
+    this.hostGaps = []; // [{ at, gap }] recent waits between snapshots
     this.statusText = "";
     this.joinUrls = [];
     this.ready = Promise.resolve(false); // solo until goOnline() is called
@@ -80,10 +100,32 @@ export class Network {
     this.lobby = []; // [{ id, slot, hero, ready, host }]
     this.onLobby = () => {};
     this.onStart = () => {};
+    this.onLobbyLost = () => {}; // connection dropped before the game started
   }
 
   sendLobby(hero, ready, name) {
     this.send({ t: "lobby", hero, ready, name });
+  }
+
+  // Done with this game on purpose (exit to menu, or the run is over): give up the
+  // slot instead of keeping it for a rejoin, and close the socket ourselves so the
+  // "menu" message is delivered before the close. Resolves once the socket is closed
+  // (or after a short wait), so a page reload can follow safely.
+  leaveGame() {
+    try {
+      sessionStorage.removeItem(REJOIN_KEY);
+    } catch {
+      // nothing stored
+    }
+    if (!this.active) return Promise.resolve();
+    this.send({ t: "menu" });
+    this.active = false; // a deliberate close, not a disconnect
+    const ws = this.ws;
+    return new Promise((resolve) => {
+      ws.addEventListener("close", () => resolve());
+      setTimeout(resolve, 1000);
+      ws.close();
+    });
   }
 
   // Host only: everyone in the lobby starts together
@@ -146,11 +188,19 @@ export class Network {
     }
   }
 
+  // For updates the next one replaces (positions, snapshots): dropped while backed up
+  sendRealtime(msg) {
+    if (this.active && this.ws.bufferedAmount > MAX_BUFFERED) return;
+    this.send(msg);
+  }
+
   onDisconnect() {
     this.active = false;
     this.isHost = true;
     this.players.clear();
+    this.lobby = [];
     if (GAME.START) GAME.getInstance().becomeHost();
+    else this.onLobbyLost();
     this.setStatus("Disconnected - single player");
   }
 
@@ -167,10 +217,14 @@ export class Network {
         this.updateStatus();
         settle(true);
         return;
-      case "lobby":
+      case "lobby": {
         this.lobby = msg.players;
+        // Who leads, straight from the server, in case a "host" message raced this one
+        const me = msg.players.find((p) => p.id === this.id);
+        if (me && !GAME.START) this.isHost = me.host;
         this.onLobby(this.lobby);
         return;
+      }
       case "start":
         this.onStart();
         return;
@@ -192,6 +246,10 @@ export class Network {
         this.players.delete(msg.id);
         this.updateStatus();
         return;
+      case "pong":
+        this.ping = Math.round(performance.now() - msg.c);
+        this.updateStatus();
+        return;
     }
 
     // Everything below needs the game world to exist
@@ -210,7 +268,10 @@ export class Network {
         break;
       }
       case "snap":
-        if (!this.isHost) game.applySnapshot(msg);
+        if (!this.isHost) {
+          this.noteSnapshot();
+          game.applySnapshot(msg);
+        }
         break;
       case "hit":
         if (this.isHost) {
@@ -261,6 +322,8 @@ export class Network {
   // Visual-only copies of another player's attacks
   onEffect(game, msg) {
     if (msg.k === "slash") {
+      const mate = this.players.get(msg.from);
+      game.audio.playHero(heroSfx(mate && mate.heroId, "attack"), MyAudio.PLAYER_ATTACK, TEAMMATE_SFX_VOLUME);
       Particle.Emit(
         msg.x,
         msg.y,
@@ -332,16 +395,48 @@ export class Network {
     return [...this.players.values()];
   }
 
+  noteSnapshot() {
+    const now = performance.now();
+    if (this.lastSnapAt) this.hostGaps.push({ at: now, gap: now - this.lastSnapAt });
+    this.lastSnapAt = now;
+  }
+
+  // Longest recent wait for the host's snapshot (ms); 0 when we're the host
+  hostGap() {
+    if (this.isHost) return 0;
+    const now = performance.now();
+    this.hostGaps = this.hostGaps.filter((g) => now - g.at < HOST_GAP_WINDOW);
+    // Also count the wait that's still going on (the host may have stopped entirely)
+    const current = this.lastSnapAt ? now - this.lastSnapAt : 0;
+    return Math.round(Math.max(current, ...this.hostGaps.map((g) => g.gap)));
+  }
+
   // Called once per frame from the game loop
   tick(delta) {
     if (!this.active) return;
-    this.sendTimer += delta;
-    if (this.sendTimer < SEND_INTERVAL) return;
-    this.sendTimer = 0;
-
     const game = GAME.getInstance();
-    this.send({ ...game.player.netPlayerState(), s: this.slot, n: game.player.name });
-    if (this.isHost) this.send(game.buildSnapshot());
+
+    this.pingTimer += delta;
+    if (this.pingTimer >= PING_INTERVAL) {
+      this.pingTimer = 0;
+      this.send({ t: "ping", c: performance.now() });
+    }
+
+    this.sendTimer += delta;
+    if (this.sendTimer >= SEND_INTERVAL) {
+      this.sendTimer = 0;
+      this.sendRealtime({ ...game.player.netPlayerState(), s: this.slot, n: game.player.name });
+    }
+
+    if (!this.isHost) return;
+    this.snapshotTimer += delta;
+    this.statsTimer += delta;
+    if (this.snapshotTimer >= SNAPSHOT_INTERVAL) {
+      this.snapshotTimer = 0;
+      const withStats = this.statsTimer >= STATS_INTERVAL;
+      if (withStats) this.statsTimer = 0;
+      this.sendRealtime(game.buildSnapshot(withStats));
+    }
   }
 
   // Drawn inside the camera transform
@@ -364,6 +459,9 @@ export class Network {
     if (GAME.START) GAME.getInstance().ui.changeMoney(GAME.getInstance().ui.money);
     const count = this.players.size + 1;
     let text = `P${this.slot + 1}${this.isHost ? " · Host" : ""} · ${count}/${MAX_PLAYERS} players`;
+    if (this.ping !== null) text += ` · ping ${this.ping} ms${this.ping > PING_WARN ? " (slow network)" : ""}`;
+    const gap = GAME.START ? this.hostGap() : 0;
+    if (gap > HOST_GAP_WARN) text += ` · host stalled ${gap} ms`;
     // While waiting alone, tell the host which link friends should open
     if (count == 1 && this.joinUrls.length) {
       text += ` · friends join at ${this.joinUrls[0]}`;

@@ -12,6 +12,7 @@ export class Lobby {
     this.heroSelect = heroSelect;
     this.ready = false;
     this.visible = false;
+    this.resyncTimer = null;
 
     $("#lobby-ready").on("click", () => this.toggleReady());
     $("#lobby-start").on("click", () => this.start());
@@ -32,6 +33,15 @@ export class Lobby {
     $("#lobby").hide();
   }
 
+  // Lost the server while waiting: back to the start options, nothing left locked
+  leave() {
+    this.hide();
+    this.ready = false;
+    this.heroSelect.setLocked(false);
+    $("#player-name").prop("disabled", false);
+    $(".start-options").show();
+  }
+
   sync() {
     if (this.visible) this.net.sendLobby(this.heroSelect.selected, this.ready, getPlayerName());
   }
@@ -41,6 +51,23 @@ export class Lobby {
     this.heroSelect.setLocked(this.ready);
     $("#player-name").prop("disabled", this.ready);
     this.sync();
+  }
+
+  // Our own row on the server, compared with what this screen shows
+  differsFromServer(players) {
+    const me = players.find((p) => p.id === this.net.id);
+    if (!me) return false;
+    return me.ready !== this.ready || me.hero !== this.heroSelect.selected || (me.name || "") !== getPlayerName();
+  }
+
+  // A broadcast can arrive while our latest update is still on its way, so only
+  // resend if the server's copy is still different a moment later
+  scheduleResync() {
+    if (this.resyncTimer) return;
+    this.resyncTimer = setTimeout(() => {
+      this.resyncTimer = null;
+      if (this.visible && this.differsFromServer(this.net.lobby)) this.sync();
+    }, 500);
   }
 
   allReady(players) {
@@ -53,6 +80,8 @@ export class Lobby {
 
   render(players) {
     if (!this.visible) return;
+
+    if (this.differsFromServer(players)) this.scheduleResync();
 
     const slots = [];
     for (let slot = 0; slot < MAX_PLAYERS; slot++) {

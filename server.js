@@ -95,7 +95,19 @@ function serveStatic(req, res) {
 }
 
 const server = http.createServer(serveStatic);
-const wss = new WebSocketServer({ server, path: "/ws" });
+// permessage-deflate: snapshots are repetitive JSON and shrink a lot. Only messages
+// over 1 KB (snapshots) are compressed, at the fastest level, so small position
+// updates go out as they are and the server's CPU cost stays tiny.
+const wss = new WebSocketServer({
+  server,
+  path: "/ws",
+  perMessageDeflate: {
+    threshold: 1024,
+    zlibDeflateOptions: { level: 1 },
+    serverNoContextTakeover: true,
+    clientNoContextTakeover: true,
+  },
+});
 
 // Links friends on the LAN can open (sent to players so the host can show them)
 const lanUrls = Object.values(os.networkInterfaces())
@@ -109,7 +121,12 @@ if (PUBLIC_URL) lanUrls.unshift(`${PUBLIC_URL}/game.html`);
 const clients = new Map(); // id -> { ws, slot }
 let nextId = 1;
 let hostId = null;
-let inGame = false; // lobby until the host starts; later joiners drop straight in
+// A game is running while anyone is playing it; later joiners drop straight in.
+// Players who went back to the menu (or never left the lobby) don't count, so once
+// the last player leaves the game the next group gathers in the lobby again.
+function inGame() {
+  return [...clients.values()].some((c) => c.playing);
+}
 
 // Rejoin: a player who drops out of a running game keeps their slot for a while
 const REJOIN_MS = 60000;
@@ -122,20 +139,24 @@ function purgeReservations() {
   });
   // The game world lives in the players' browsers: once everyone has left there's
   // nothing to rejoin, so the next group starts fresh in the lobby
-  if (clients.size === 0) {
-    reserved.clear();
-    inGame = false;
-  }
+  if (!inGame()) reserved.clear();
 }
 
 function send(ws, msg) {
   if (ws.readyState === ws.OPEN) ws.send(msg);
 }
 
-function broadcast(msg, exceptId) {
+// Positions and enemy snapshots: each one replaces the last, so a client whose
+// connection is behind skips them instead of getting an ever-growing backlog (lag)
+const REALTIME = new Set(["p", "snap"]);
+const MAX_BUFFERED = 256 * 1024;
+
+function broadcast(msg, exceptId, realtime = false) {
   const data = typeof msg === "string" ? msg : JSON.stringify(msg);
   clients.forEach((client, id) => {
-    if (id !== exceptId) send(client.ws, data);
+    if (id === exceptId) return;
+    if (realtime && client.ws.bufferedAmount > MAX_BUFFERED) return;
+    send(client.ws, data);
   });
 }
 
@@ -144,7 +165,7 @@ function broadcastLobby() {
   const players = [...clients.entries()]
     .map(([id, c]) => ({ id, slot: c.slot, name: c.name, hero: c.hero, ready: c.ready, host: id === hostId }))
     .sort((a, b) => a.slot - b.slot);
-  broadcast({ t: "lobby", players, inGame });
+  broadcast({ t: "lobby", players, inGame: inGame() });
 }
 
 function freeSlot() {
@@ -167,10 +188,15 @@ wss.on("connection", (ws, req) => {
     return;
   }
 
+  ws.isAlive = true;
+  ws.on("pong", () => (ws.isAlive = true));
+
   const id = nextId++;
-  clients.set(id, { ws, slot, token, hero: "knight", ready: false });
+  const running = inGame();
+  // Joining a running game drops you straight in (see main.js)
+  clients.set(id, { ws, slot, token, hero: "knight", ready: false, playing: running });
   if (hostId === null) hostId = id;
-  send(ws, JSON.stringify({ t: "welcome", id, slot, host: hostId === id, urls: lanUrls, inGame, rejoined }));
+  send(ws, JSON.stringify({ t: "welcome", id, slot, host: hostId === id, urls: lanUrls, inGame: running, rejoined }));
   broadcastLobby();
   console.log(`Player ${slot + 1} joined${hostId === id ? " (host)" : ""} - ${clients.size}/${MAX_PLAYERS}`);
 
@@ -183,6 +209,11 @@ wss.on("connection", (ws, req) => {
     }
     msg.from = id;
 
+    if (msg.t === "ping") {
+      // Answered here, not relayed: the round trip to the server is the player's ping
+      send(ws, JSON.stringify({ t: "pong", c: msg.c }));
+      return;
+    }
     if (msg.t === "lobby") {
       const client = clients.get(id);
       if (typeof msg.hero === "string") client.hero = msg.hero.slice(0, 20);
@@ -192,11 +223,25 @@ wss.on("connection", (ws, req) => {
       return;
     }
     if (msg.t === "start") {
-      if (id === hostId && !inGame) {
-        inGame = true;
+      // Checked here, not just on the host's screen: someone may have un-readied
+      // or joined while the host's lobby list was on its way
+      const everyone = [...clients.values()];
+      if (id === hostId && !inGame() && everyone.every((c) => c.ready)) {
+        everyone.forEach((c) => (c.playing = true));
         broadcast({ t: "start" });
+        broadcastLobby();
         console.log("Game started");
       }
+      return;
+    }
+    if (msg.t === "menu") {
+      // Left the game on purpose (exit / credits): no slot to keep for a rejoin
+      const client = clients.get(id);
+      client.playing = false;
+      client.ready = false;
+      client.token = "";
+      purgeReservations();
+      broadcastLobby();
       return;
     }
 
@@ -208,14 +253,14 @@ wss.on("connection", (ws, req) => {
       const host = clients.get(hostId);
       if (host && hostId !== id) send(host.ws, out);
     } else {
-      broadcast(out, id);
+      broadcast(out, id, REALTIME.has(msg.t));
     }
   });
 
   ws.on("close", () => {
     const client = clients.get(id);
     clients.delete(id);
-    if (inGame && client.token) reserved.set(client.token, { slot, until: Date.now() + REJOIN_MS });
+    if (client.playing && client.token) reserved.set(client.token, { slot, until: Date.now() + REJOIN_MS });
     broadcast({ t: "leave", id });
     if (hostId === id) {
       hostId = clients.size ? clients.keys().next().value : null;
@@ -226,6 +271,17 @@ wss.on("connection", (ws, req) => {
     console.log(`Player ${slot + 1} left - ${clients.size}/${MAX_PLAYERS}`);
   });
 });
+
+// Heartbeat: a laptop that went to sleep leaves a socket that never closes on its
+// own, and would keep its player "playing" forever. Browsers answer pings for us.
+const HEARTBEAT_MS = 10000;
+setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (!ws.isAlive) return ws.terminate(); // fires "close" like a normal leave
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, HEARTBEAT_MS);
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`\nWCL Knights LAN server running.\n`);

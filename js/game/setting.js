@@ -15,6 +15,23 @@ export class Setting {
 
   static PLAYER_INTERACT = [" ", "e"];
 
+  // The key a game binding should see. Letters are lower-cased so Caps Lock and
+  // Shift don't break attack / dash / blast, and the printed letter wins so
+  // AZERTY / QWERTZ keep their labels. Only when e.key isn't a usable letter
+  // (an IME such as Vietnamese Telex reports "Process", other alphabets give
+  // their own letters) do we fall back to the physical key in e.code.
+  // Synthetic events from the gamepad have no code and use e.key as is.
+  static gameKey(e) {
+    const key = e.key || "";
+    const lower = key.length === 1 ? key.toLowerCase() : key;
+    if (/^[a-z]$/.test(lower)) return lower;
+    const physical = /^Key([A-Z])$/.exec(e.code || "");
+    if (physical && (key.length === 1 || key === "Process" || key === "Unidentified")) {
+      return physical[1].toLowerCase();
+    }
+    return lower;
+  }
+
   static CHARACTER_WIDTH = 150;
   static CHARACTER_HEIGHT = 170;
   static CHARACTER_SPEED = 2500;
@@ -92,17 +109,25 @@ export class Setting {
   // Co-op scaling, applied per extra player (2 players = 1 extra)
   static CRAWLID_HEALTH = 1;
   static BOOFLY_HEALTH = 1;
-  static COOP_HEALTH_PER_PLAYER = 0.5; // enemy & boss health x1.5 / x2 / x2.5
+  static COOP_HEALTH_PER_PLAYER = 0.5; // boss health x1.5 / x2 / x2.5
+  static COOP_ENEMY_HEALTH_PER_PLAYER = 0.25; // regular enemies x1.25 / x1.5 / x1.75
   static COOP_KILLS_PER_PLAYER = 5; // boss door needs 10 / 15 / 20 / 25 kills
   static MAX_ALIVE_ENEMIES = 10;
-  static COOP_ENEMIES_PER_PLAYER = 4; // max alive enemies 10 / 14 / 18 / 22
-  static COOP_SPAWN_RATE_PER_PLAYER = 0.3; // spawns x1.3 / x1.6 / x1.9 as often
-  static COOP_DOUBLE_SPAWN_PLAYERS = 3; // from 3 players each spawn brings 2 groups
+  static COOP_ENEMIES_PER_PLAYER = 2; // max alive enemies 10 / 12 / 14 / 16
+  static COOP_SPAWN_RATE_PER_PLAYER = 0.15; // spawns x1.15 / x1.3 / x1.45 as often
+  static COOP_DOUBLE_SPAWN_PLAYERS = 4; // only a full party gets 2 groups per spawn
   static SPAWN_GROUP_GAP = 0.8; // seconds between the groups so they don't stack
   static COOP_METEORS_PER_PLAYER = 1; // boss slam meteors 3 / 4 / 5 / 6
   static COOP_CAMERA_ZOOM = 1.25; // base view 25% wider with teammates
   static CAMERA_TEAMMATE_MARGIN = 400; // extra space kept around far teammates
   static ENEMY_HIT_FLASH_DECAY = 5; // how fast the white hit flash fades
+
+  // Netcode (co-op)
+  static NET_MAX_EXTRAPOLATE = 0.15; // s: how far ahead of the last update we guess
+  static NET_MAX_LEAD = 0.1; // s: at most this much of the ping is made up for
+  static NET_SMOOTH = 20; // how fast the drawn position catches up with the guess
+  static NET_SNAP_DISTANCE = 400; // farther off than this: jump instead of gliding
+  static NET_PREDICT_TIME = 1000; // ms a guest trusts its own hit before the host confirms
 
   // Area 2: Sunken Grove
   static MOSSLING_HEALTH = 2;

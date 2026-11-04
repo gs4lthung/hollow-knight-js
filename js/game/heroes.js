@@ -18,6 +18,7 @@ export const HEROES = {
     color: "#ffffff",
     glow: "160,230,255",
     preview: "assets/game/hero/idle/idle_01.png",
+    // No sfx: the knight keeps the original sword / soul blast sounds
     stats: { speed: 1, jump: 1, maxHealth: 5, range: 1, attackSpeed: 1, dashCooldown: 1 },
     skill: { name: "Soul Blast", description: "A piercing blast of soul." },
   },
@@ -25,6 +26,7 @@ export const HEROES = {
     name: "Ember",
     color: "#ff8a1f",
     glow: "255,138,31",
+    sfx: { attack: "assets/game/audio/hero_fire_attack.wav", skill: "assets/game/audio/hero_fire_skill.wav" },
     stats: { speed: 1.2, jump: 1.05, maxHealth: 4, range: 0.8, attackSpeed: 1.25, dashCooldown: 0.8 },
     skill: {
       name: "Fireball",
@@ -42,6 +44,7 @@ export const HEROES = {
     name: "Bastion",
     color: "#8fbf4a",
     glow: "143,191,74",
+    sfx: { attack: "assets/game/audio/hero_earth_attack.wav", skill: "assets/game/audio/hero_earth_skill.wav" },
     stats: { speed: 0.8, jump: 0.85, maxHealth: 8, range: 1.1, attackSpeed: 0.75, dashCooldown: 1.3 },
     skill: {
       name: "Rock Spikes",
@@ -58,6 +61,7 @@ export const HEROES = {
     name: "Tide",
     color: "#2bb3a8",
     glow: "43,179,168",
+    sfx: { attack: "assets/game/audio/hero_water_attack.wav", skill: "assets/game/audio/hero_water_skill.wav" },
     stats: { speed: 1, jump: 1, maxHealth: 5, range: 1.4, attackSpeed: 0.9, dashCooldown: 1 },
     skill: {
       name: "Healing Wave",
@@ -75,6 +79,7 @@ export const HEROES = {
     name: "Zephyr",
     color: "#86c99a",
     glow: "134,201,154",
+    sfx: { attack: "assets/game/audio/hero_wind_attack.wav", skill: "assets/game/audio/hero_wind_skill.wav" },
     stats: { speed: 1.3, jump: 1.2, maxHealth: 3, range: 0.9, attackSpeed: 1.15, dashCooldown: 0.6 },
     skill: {
       name: "Tornado",
@@ -132,6 +137,12 @@ function loadFrames(folder, name, count) {
 
 export function heroOf(id) {
   return HEROES[id] || HEROES[DEFAULT_HERO];
+}
+
+// Sound file for a hero's "attack" or "skill", or null to use the knight's sound
+export function heroSfx(id, kind) {
+  const sfx = heroOf(id).sfx;
+  return (sfx && sfx[kind]) || null;
 }
 
 export function heroConfig(anim) {

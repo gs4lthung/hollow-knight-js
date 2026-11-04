@@ -27,6 +27,34 @@ import { Warden } from "./model/warden.js";
 // The run: Area 1 -> False Knight -> Sunken Grove -> Grove Warden
 const STAGES = ["area1", "boss1", "area2", "boss2"];
 
+// ~30 ticks a second from a worker, for scheduleFrame() while the tab is hidden
+const BackgroundTicker = {
+  worker: null,
+  callback: null,
+  next(callback) {
+    this.callback = callback;
+    if (!this.worker) {
+      try {
+        const code = "setInterval(() => postMessage(0), 33);";
+        this.worker = new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
+        this.worker.onmessage = () => {
+          const run = this.callback;
+          this.callback = null;
+          if (run) run();
+        };
+      } catch {
+        // No workers: a plain timer still beats stopping (if throttled to ~1/s)
+        const id = setTimeout(callback, 33);
+        this.callback = null;
+        return () => clearTimeout(id);
+      }
+    }
+    return () => {
+      if (this.callback === callback) this.callback = null;
+    };
+  },
+};
+
 export class GAME {
   static START = false;
   static gameInstance;
@@ -272,9 +300,19 @@ export class GAME {
     return this.playerCount() - 1;
   }
 
-  // Multiplier for enemy and boss health
+  // Multiplier for boss health and armor
   difficulty() {
     return 1 + Setting.COOP_HEALTH_PER_PLAYER * this.extraPlayers();
+  }
+
+  // Multiplier for regular enemies' health (lower than the boss's: there are more of them)
+  enemyDifficulty() {
+    return 1 + Setting.COOP_ENEMY_HEALTH_PER_PLAYER * this.extraPlayers();
+  }
+
+  // Room for one more spawn group (spawnEnemy adds a whole group) under the cap
+  canSpawnGroup() {
+    return this.aliveEnemy() + Setting.ENEMY_SPAWN_PER_TIME <= this.maxAliveEnemies();
   }
 
   killsForBossDoor() {
@@ -345,14 +383,17 @@ export class GAME {
   damageEnemy(enemy, n = 0) {
     if (this.isGuest()) {
       if (enemy.netId != null) {
-        this.net.send({ t: "hit", to: "host", id: enemy.netId, n: n || this.player.damage });
+        const damage = n || this.player.damage;
+        this.net.send({ t: "hit", to: "host", id: enemy.netId, n: damage });
+        if (enemy.predictHit) enemy.predictHit(damage);
       }
       return;
     }
     this.applyHit(enemy, n, this.myStatsKey());
   }
 
-  buildSnapshot() {
+  // withStats: include the scoreboard (sent now and then; guests keep the last one)
+  buildSnapshot(withStats = true) {
     const enemies = this.enemies
       .filter((e) => e.constructor.NET_KIND && !e.destroy)
       .map((e) => {
@@ -366,7 +407,7 @@ export class GAME {
       door: this.bossDoor.open ? 1 : 0,
       stage: this.stage,
       ak: this.areaStartKills,
-      st: this.stats, // so a promoted host keeps the scoreboard
+      st: withStats ? this.stats : undefined, // so a promoted host keeps the scoreboard
     };
   }
 
@@ -495,7 +536,8 @@ export class GAME {
   }
 
   backToMenu() {
-    window.location.reload();
+    const leaving = this.net ? this.net.leaveGame() : Promise.resolve();
+    leaving.then(() => window.location.reload());
   }
 
   spawnEnemy() {
@@ -549,6 +591,14 @@ export class GAME {
     if (this.isHost()) {
       this.scoreRows = this.buildScoreRows();
       if (this.isNetworked()) this.net.send({ t: "ev", e: "finish", rows: this.scoreRows });
+    }
+    // Nothing is shared after this point; leaving now lets the next group use the
+    // lobby, and a refresh during the credits goes to the menu instead of back here
+    if (this.isNetworked()) {
+      const wasGuest = this.isGuest();
+      this.net.leaveGame();
+      // On our own from here, like after a disconnect: run the (finished) world locally
+      if (wasGuest) this.becomeHost();
     }
     this.audio.fadeVideo();
 
@@ -866,7 +916,32 @@ export class GAME {
       if (this.useCamera) this.camera.end();
     }
     if (this.net && this.player) this.net.tick(this.delta);
-    requestAnimationFrame(this.render.bind(this));
+    this.scheduleFrame();
+  }
+
+  // Browsers stop requestAnimationFrame in a hidden or minimised tab. Alone that's
+  // a fine pause, but in co-op it freezes our knight for everyone, and if we're the
+  // host every enemy with it. So while hidden in co-op, a worker's timer (not
+  // throttled like the page's own) keeps the game ticking.
+  scheduleFrame() {
+    if (!this.renderBound) {
+      this.renderBound = () => {
+        this.frameRequest = null;
+        this.render();
+      };
+      document.addEventListener("visibilitychange", () => {
+        if (!this.frameRequest) return;
+        if (this.frameRequest.raf) cancelAnimationFrame(this.frameRequest.raf);
+        else this.frameRequest.cancel();
+        this.frameRequest = null;
+        this.scheduleFrame();
+      });
+    }
+    if (document.hidden && this.isNetworked()) {
+      this.frameRequest = { cancel: BackgroundTicker.next(this.renderBound) };
+    } else {
+      this.frameRequest = { raf: requestAnimationFrame(this.renderBound) };
+    }
   }
 
   moveBackground(backward) {
